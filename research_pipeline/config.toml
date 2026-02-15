@@ -73,16 +73,17 @@ sensitivity_gen_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 mc_include_structural_mismatch = true
 
 # Multiplicative random effect on generation rate (lognormal std in log-space)
-# Approx. +/-15% typical variation in metabolic generation.
-mc_structural_sigma_g_log = 0.15
+# Chosen so the central 80% prior range reaches about x1.3 (ln(1.3)/1.2816).
+mc_structural_sigma_g_log = 0.205
 
 # Additive random effect on phi per draw (unitless, clipped to [phi_min, phi_max])
-# Captures short-term ventilation drift and regime changes.
-mc_structural_sigma_phi = 0.002
+# Chosen so central 80% range reaches about +0.005 drift.
+mc_structural_sigma_phi = 0.0039
 
 # Additive random effect on baseline excess (ppm) per draw.
-# Represents baseline drift/outdoor fluctuations not captured by fixed baseline.
-mc_structural_sigma_baseline_ppm = 10.0
+# Chosen so central 80% range reaches about +/-30 ppm offset.
+mc_structural_sigma_baseline_ppm = 23.4
 
 # Multiplicative random effect on innovation noise scale (lognormal std in log-space).
-mc_structural_sigma_noise_log = 0.10
+# Chosen so central 80% prior range reaches about xsqrt(2) inflation.
+mc_structural_sigma_noise_log = 0.270

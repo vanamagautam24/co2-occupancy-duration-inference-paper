@@ -63,17 +63,17 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 
 | Metric | Value | Criterion | Pass |
 |---|---:|---:|:---:|
-| C1 in-sample mean unclamped (label=0) | 11.19 min | < 15 | YES |
+| C1 in-sample mean unclamped (label=0) | 11.23 min | < 15 | YES |
 | C2 in-sample % under 5 min | 80.3% | > 60% | YES |
 | C1-OOS mean unclamped (label=0) | 19.54 min | < 20 | YES |
 | C2-OOS % under 5 min | 77.2% | > 50% | YES |
 | C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
 | C1-OOS 5% trimmed mean | 12.08 min | descriptive | N/A (descriptive) |
 | C1-OOS tail contribution (top 5%) | 53.3% | descriptive | N/A (descriptive) |
-| E1 LOO mean relative MAE | 1.42 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.293 | > 0.2 | YES |
-| E3 max phi sensitivity change | 75.7% | < 200% | YES |
-| E4 high-confidence blocks | 47.1% | > 40% | YES |
+| E1 LOO mean relative MAE | 1.45 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.275 | > 0.2 | YES |
+| E3 max phi sensitivity change | 78.0% | < 200% | YES |
+| E4 high-confidence blocks | 45.2% | > 40% | YES |
 
 `N/A (descriptive)` means the metric is reported for interpretation (robustness/tail behavior), not used as a pass/fail criterion.
 
@@ -82,10 +82,10 @@ Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
 
 | Group | Coverage (80% CI) | Mean CI Width | MAE |
 |---|---:|---:|---:|
-| Continuous | 63.2% | 68.2 min | 44.5 min |
-| Fragmented | 67.3% | 91.4 min | 54.9 min |
-| Stress | 60.8% | 91.7 min | 44.6 min |
-| Overall | 62.9% | 82.1 min | 46.3 min |
+| Continuous | 69.6% | 79.9 min | 44.5 min |
+| Fragmented | 76.9% | 106.5 min | 54.9 min |
+| Stress | 69.2% | 110.6 min | 44.6 min |
+| Overall | 70.7% | 97.4 min | 46.3 min |
 
 ## Baseline Comparator Note
 Source: `research_outputs/tables/table07_baseline_comparators.csv`

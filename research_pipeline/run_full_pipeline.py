@@ -1106,7 +1106,7 @@ def estimate_block_minutes_mc(
         g_s = float(np.clip(
             rng.normal(fit.g_hat * g_mult_s, fit.g_se), cfg.generation_min, cfg.generation_max
         ))
-        sigma_s = float(max(fit.sigma_noise * sigma_mult_s, 1.0))
+        sigma_s = float(np.clip(fit.sigma_noise * sigma_mult_s, 5.0, 200.0))
 
         floor_s = np.maximum(0.0, rng.normal(floor_center_arr, floor_sd_arr * 0.5))
 
@@ -2732,7 +2732,7 @@ def run_semisynthetic_validation(
                 cfg.generation_min,
                 cfg.generation_max,
             ))
-            sigma_s = float(max(fit_obj.sigma_noise * sigma_mult_s, 1.0))
+            sigma_s = float(np.clip(fit_obj.sigma_noise * sigma_mult_s, 5.0, 200.0))
             floor_s = max(0.0, rng.normal(floor_center, floor_sd * 0.5))
 
             phi_carry_s = float(np.clip(phi_s + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
