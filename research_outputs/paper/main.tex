@@ -49,7 +49,7 @@
              country={USA}}
 
 \begin{abstract}
-Estimating how long occupants spend in their rooms is valuable for understanding indoor environmental exposure, energy use, and well-being in residential buildings. While CO\textsubscript{2} concentration is widely used as a proxy for occupancy detection (present/absent), estimating \emph{duration} of occupancy within time blocks remains an open challenge. We present a physics-based method that infers occupied minutes within four-hour blocks from indoor CO\textsubscript{2} measurements in university dormitory rooms. The method fits an autoregressive AR(1) model to each sensor's CO\textsubscript{2} time series, applies carryover-aware block correction, calibrates block-level excess CO\textsubscript{2} against per-sensor empty-room behavior, and converts the calibrated signal to occupied minutes using finite-window mass balance physics. Monte Carlo propagation of parameter uncertainty plus structural-mismatch priors yields nominal 80\% credible intervals for each estimate. We validate the method on 12~sensors monitoring 24~subjects across 774~four-hour blocks over 68~days. All four independent evaluation criteria---covering cross-sensor generalizability (E1--E2), parameter sensitivity (E3), and uncertainty informativeness (E4)---are satisfied. Two calibration diagnostics used to tune the empty-room floor are met by construction, and their temporal out-of-sample counterparts also pass under relaxed criteria. A semisynthetic validation---injecting known occupancy patterns into real empty-room CO\textsubscript{2} data with model-mismatch stress tests---provides partial external validation of duration recovery accuracy, with underestimation under strong mismatch explicitly quantified. Comparison against threshold, slope, and fused-lasso baseline methods demonstrates that the block-excess approach achieves superior empty-room specificity. The method requires no labeled minute-level training data, uses only CO\textsubscript{2} measurements and known-empty calibration periods, and runs in under one minute on standard hardware.
+Estimating how long occupants spend in their rooms is valuable for understanding indoor environmental exposure, energy use, and well-being in residential buildings. While CO\textsubscript{2} concentration is widely used as a proxy for occupancy detection (present/absent), estimating \emph{duration} of occupancy within time blocks remains an open challenge. We present a physics-based method that infers occupied minutes within four-hour blocks from indoor CO\textsubscript{2} measurements in university dormitory rooms. The method fits an autoregressive AR(1) model to each sensor's CO\textsubscript{2} time series, applies carryover-aware block correction, calibrates block-level excess CO\textsubscript{2} against per-sensor empty-room behavior, and converts the calibrated signal to occupied minutes using finite-window mass balance physics. Monte Carlo propagation of parameter uncertainty plus structural-mismatch priors yields nominal 80\% credible intervals for each estimate. We validate the method on 12~sensors monitoring 24~subjects across 774~four-hour blocks over 68~days. All four independent evaluation criteria---covering cross-sensor generalizability (E1--E2), parameter sensitivity (E3), and uncertainty informativeness (E4)---are satisfied. Two calibration diagnostics used to tune the empty-room floor are met by construction, and their temporal out-of-sample counterparts also pass under relaxed criteria. A semisynthetic validation---injecting known occupancy patterns into real empty-room CO\textsubscript{2} data with model-mismatch stress tests---provides partial external validation of duration recovery accuracy, with underestimation under strong mismatch explicitly quantified. Comparison against threshold, slope, and fused-lasso baseline methods demonstrates that the block-excess approach achieves superior empty-room specificity. The method requires no labeled minute-level training data, using only CO\textsubscript{2} measurements plus block-level labels (present for some/all of the block vs absent for the full block), and runs in under one minute on standard hardware.
 \end{abstract}
 
 \begin{keyword}
@@ -75,7 +75,7 @@ In this paper, we present a method that addresses these challenges by operating 
 
 The contributions of this paper are:
 \begin{enumerate}
-    \item A physics-based method for estimating occupancy \emph{duration} (not just presence/absence) from CO\textsubscript{2}, requiring no labeled minute-level training data---only binary block-level presence labels and known-empty calibration periods.
+    \item A physics-based method for estimating occupancy \emph{duration} (not just presence/absence) from CO\textsubscript{2}, requiring no labeled minute-level training data---only binary block-level presence labels (present vs absent).
     \item Per-sensor adaptive calibration that accounts for room-specific ventilation, sensor placement, and residual CO\textsubscript{2} characteristics.
     \item A noise-calibrated innovation significance gate with an explicit block-specific minimum detectable duration diagnostic $M_\text{min}^{(b)}$.
     \item Full Monte Carlo uncertainty quantification providing 80\% credible intervals for each block-level duration estimate.
@@ -146,15 +146,15 @@ Data were collected from a university dormitory building as part of the Center f
 
 \subsubsection{CO\textsubscript{2} monitoring}
 
-Indoor CO\textsubscript{2} concentrations were measured at one-minute intervals using nondispersive infrared (NDIR) sensors deployed in each monitored room. A total of 78~sensors recorded approximately 1.4~million minute-level observations across 138~data files. Of these, 12~sensors were matched to rooms with concurrent occupancy ground truth, providing the dataset for method development and validation.
+Indoor CO\textsubscript{2} concentrations were measured at one-minute intervals using nondispersive infrared (NDIR) sensors deployed in each monitored room. A total of 78~sensors recorded approximately 1.4~million minute-level observations across 138~data files. Of these, 12~sensors were matched to rooms with concurrent block-level occupancy labels, providing the dataset for method development and validation.
 
 The 12~sensors monitored rooms of two types: 9~single-occupancy rooms and 3~shared rooms (two assigned residents). Sensors were placed at desk height to capture the breathing zone CO\textsubscript{2} concentration representative of the occupied microenvironment.
 
-\subsubsection{Occupancy ground truth}
+\subsubsection{Occupancy labels}
 
 Self-reported occupancy data were collected from 24~participants (two per single room, two per shared room) through a structured survey instrument. Each single-occupancy room has one assigned resident; however, two study participants were enrolled per room to provide independent survey responses. The CO\textsubscript{2} sensor measures the room environment and cannot distinguish individual occupants, so the CO\textsubscript{2}-based duration estimate for a given block is the same for all participants associated with a sensor. Participant-level totals differ only because they are aggregated over different subsets of blocks based on each participant's self-reported presence schedule. Participants reported their presence or absence for each four-hour block of the day (02:00--06:00, 06:00--10:00, 10:00--14:00, 14:00--18:00, 18:00--22:00, 22:00--02:00), yielding a binary label for each block: 1 (present for some or all of the block) or 0 (absent for the entire block). CO\textsubscript{2} was recorded over the full 68-day monitoring period, while self-reported labels were available for shorter participant-specific windows (typically around one week), yielding 791 labeled blocks in total.
 
-The ground truth thus provides block-level \emph{presence} labels but not the exact number of minutes present within each block. This distinction is important: a label of 1 indicates that the subject was present for at least some portion of the four-hour block, which could range from a few minutes to the full 240 minutes.
+These labels provide block-level \emph{presence} information but not the exact number of minutes present within each block. This distinction is important: a label of 1 indicates that the subject was present for at least some portion of the four-hour block, which could range from a few minutes to the full 240 minutes.
 
 \subsubsection{Dataset summary}
 
@@ -195,6 +195,12 @@ Unless otherwise stated, the main results tables report counts on the analysis s
 All table captions below explicitly indicate their counting unit.
 
 % -----------------------------------------------------------------------------
+\subsubsection{CO\textsubscript{2} preprocessing}
+\label{sec:preprocessing}
+
+Raw CO\textsubscript{2} readings were preprocessed identically for all sensors before parameter fitting and block estimation. First, timestamps were parsed and truncated to one-minute resolution; if multiple readings occurred in the same minute, they were averaged. Physically implausible values were removed using a conservative range filter (\SIrange{200}{10000}{ppm}). We then applied a per-sensor rolling median smoother with a 5-minute window to suppress short sensor spikes while preserving occupancy-driven trends; missing values introduced at window edges were filled with the raw minute value. No temporal interpolation was used across missing gaps. All decay and innovation terms were computed only on valid consecutive-minute pairs ($\Delta t = 1$), so data gaps were excluded rather than imputed.
+
+% -----------------------------------------------------------------------------
 \subsection{CO\textsubscript{2} dynamics model}
 \label{sec:co2_model}
 % -----------------------------------------------------------------------------
@@ -210,7 +216,7 @@ The AR(1) dynamics relate consecutive excess values:
     E_t = \phi \, E_{t-1} + g \cdot O_t + \varepsilon_t
     \label{eq:ar1}
 \end{equation}
-where $\phi \in (0, 1)$ is the decay parameter (related to the air exchange rate), $g > 0$ is the CO\textsubscript{2} generation rate per minute of occupancy (ppm/min), $O_t \in \{0, 1\}$ is the occupancy state at minute $t$, and $\varepsilon_t \sim \mathcal{N}(0, \sigma_\varepsilon^2)$ is the innovation noise.
+where $\phi \in (0, 1)$ is the decay parameter (related to the air exchange rate), $g > 0$ is the CO\textsubscript{2} generation rate per minute of occupancy (ppm/min), $O_t \in \{0, 1\}$ is the latent minute-level occupancy state at time $t$, and $\varepsilon_t \sim \mathcal{N}(0, \sigma_\varepsilon^2)$ is the innovation noise.
 
 \subsubsection{Physical interpretation of model parameters}
 
@@ -235,7 +241,7 @@ The ambient baseline $C_b$ is estimated as the 1st percentile of all CO\textsubs
 \label{sec:param_estimation}
 % -----------------------------------------------------------------------------
 
-For each sensor, we estimate $\phi$, $g$, and $\sigma_\varepsilon$ from the minute-level CO\textsubscript{2} time series using the known-empty (label = 0) and known-occupied (label = 1) periods.
+For each sensor, we estimate $\phi$, $g$, and $\sigma_\varepsilon$ from minute-level CO\textsubscript{2} using minutes that fall inside blocks labeled absent (label = 0) or present (label = 1), after room-level label aggregation for shared rooms (Section~\ref{sec:unit_analysis}).
 
 \subsubsection{Room-level occupancy labels for shared rooms}
 
@@ -248,7 +254,7 @@ where $\mathcal{J}_s$ is the set of subjects mapped to sensor~$s$.  All physics 
 
 \subsubsection{Decay parameter ($\phi$)}
 
-The decay parameter is estimated from CO\textsubscript{2} decay episodes during known-empty periods. We select consecutive minute pairs where (i) the room is labeled absent, (ii) the time gap is exactly one minute (no data gaps), and (iii) the preceding excess exceeds \SI{30}{ppm} (ensuring we fit genuine CO\textsubscript{2} decay rather than noise near ambient). The ordinary least squares (OLS) estimator is:
+The decay parameter is estimated from CO\textsubscript{2} decay episodes during minutes inside blocks labeled absent. We select consecutive minute pairs where (i) the room-level label is absent, (ii) the time gap is exactly one minute (no data gaps), and (iii) the preceding excess exceeds \SI{30}{ppm} (ensuring we fit genuine CO\textsubscript{2} decay rather than noise near ambient). The ordinary least squares (OLS) estimator is:
 \begin{equation}
     \hat{\phi}_\text{OLS} = \frac{\sum_{t \in \mathcal{D}} E_{t-1} \, E_t}{\sum_{t \in \mathcal{D}} E_{t-1}^2}
     \label{eq:phi_ols}
@@ -259,7 +265,7 @@ where $\mathcal{D}$ denotes the set of valid decay observations. The standard er
     \label{eq:phi_se}
 \end{equation}
 
-With one-minute sampling, OLS estimates of $\phi$ are biased upward toward 1.0 due to extreme autocorrelation. We apply Bayesian shrinkage toward a physical prior ($\phi_\text{prior} = 0.97$, corresponding to ${\sim}0.03$ air changes per minute):
+With one-minute sampling, $\phi$ estimation is sensitive to high autocorrelation, transient ventilation shifts, and imperfect empty-label segments. We therefore apply shrinkage toward a physical prior ($\phi_\text{prior} = 0.97$, corresponding to ${\sim}0.03$ air changes per minute) to stabilize estimates:
 \begin{equation}
     \hat{\phi} = \lambda_s \, \phi_\text{prior} + (1 - \lambda_s) \, \hat{\phi}_\text{OLS}, \quad \lambda_s = \frac{w_\text{prior}}{w_\text{prior} + |\mathcal{D}|}
     \label{eq:phi_shrinkage}
@@ -268,28 +274,28 @@ where $w_\text{prior} = 180$ is the effective prior sample size. The final estim
 
 \subsubsection{Generation rate ($g$)}
 
-The generation rate is estimated using the steady-state relationship between excess CO\textsubscript{2} and occupancy. During occupied periods, the 75th percentile of excess CO\textsubscript{2} serves as a proxy for sustained-presence conditions:
+The generation rate is estimated using the steady-state relationship between excess CO\textsubscript{2} and occupancy. Within minutes belonging to present-labeled blocks, the 75th percentile of excess CO\textsubscript{2} serves as a proxy for sustained-presence conditions:
 \begin{equation}
     \hat{g} = \max\!\left(\left(E_{\text{occ,min}}^{(75)} - \tilde{E}_\text{empty}\right) \cdot (1 - \hat{\phi}), \;\; \hat{g}_\text{innov}, \;\; \SI{1.0}{ppm/min}\right)
     \label{eq:g_hat}
 \end{equation}
-where $E_{\text{occ,min}}^{(75)}$ is the 75th percentile of excess during occupied minutes, $\tilde{E}_\text{empty}$ is the median excess during empty minutes, and $\hat{g}_\text{innov}$ is an alternative estimate from the quantile of positive innovations during occupied periods. The generation rate is clipped to $[\SI{1.0}{}, \SI{60.0}{ppm/min}]$.
+where $E_{\text{occ,min}}^{(75)}$ is the 75th percentile of excess during minutes in present-labeled blocks, $\tilde{E}_\text{empty}$ is the median excess during minutes in absent-labeled blocks, and $\hat{g}_\text{innov}$ is an alternative estimate from the quantile of positive innovations during present-labeled blocks. The generation rate is clipped to $[\SI{1.0}{}, \SI{60.0}{ppm/min}]$.
 
 \subsubsection{Innovation noise ($\sigma_\varepsilon$)}
 
-The innovation noise is estimated as the standard deviation of innovations during known-empty, consecutive-minute periods:
+The innovation noise is estimated as the standard deviation of innovations during absent-labeled, consecutive-minute periods:
 \begin{equation}
     \hat{\sigma}_\varepsilon = \text{SD}\!\left(\{E_t - \hat{\phi} \, E_{t-1} : t \in \mathcal{E}, \; \Delta t = 1\}\right)
     \label{eq:sigma_noise}
 \end{equation}
-where $\mathcal{E}$ is the set of known-empty observations. This is clipped to $[\SI{5}{}, \SI{200}{ppm}]$.
+where $\mathcal{E}$ is the set of absent-labeled minute observations. This is clipped to $[\SI{5}{}, \SI{200}{ppm}]$.
 
 \subsubsection{Fallback parameter rules}
 
 When a sensor has insufficient data for reliable parameter estimation, fallback values are used:
 \begin{itemize}
     \item If $|\mathcal{D}| < 30$ (fewer than 30 valid decay observations): $\hat{\phi} = \phi_\text{prior} = 0.97$, $\text{SE}(\hat{\phi}) = 0.03$.
-    \item If $|\mathcal{O}| < 20$ (fewer than 20 occupied-period observations): $\hat{g}$ defaults to the room-type mean (\SI{10}{ppm/min} for single rooms, \SI{18}{ppm/min} for shared rooms), $\text{SE}(\hat{g}) = 4.0$.
+    \item If $|\mathcal{O}| < 20$ (fewer than 20 minutes in present-labeled blocks): $\hat{g}$ defaults to the room-type mean (\SI{10}{ppm/min} for single rooms, \SI{18}{ppm/min} for shared rooms), $\text{SE}(\hat{g}) = 4.0$.
 \end{itemize}
 Sensor 20233681 uses the fallback for $\hat{\phi}$ ($n_\text{decay} = 0$) and its generation rate $\hat{g} = \SI{60}{ppm/min}$ reflects the upper clipping bound rather than sensor-specific fitting.  Table~\ref{tab:sensor_params} identifies which sensors use fallback parameters.
 
@@ -302,12 +308,12 @@ The core estimation method operates at the four-hour block level, converting mea
 
 \subsubsection{Per-sensor empty-room calibration}
 
-For each sensor, we compute carryover-adjusted block-level excess CO\textsubscript{2} and establish an ``empty-room floor'' from the known-empty (label = 0) blocks. The empty-room floor captures residual CO\textsubscript{2} not removed by the carryover model, sensor offset, and building HVAC effects. To better handle heavy-tail empty blocks, we use a two-regime floor based on predicted carryover risk:
+For each sensor, we compute carryover-adjusted block-level excess CO\textsubscript{2} and establish an ``empty-room floor'' from blocks labeled absent (label = 0). The empty-room floor captures residual CO\textsubscript{2} not removed by the carryover model, sensor offset, and building HVAC effects. To better handle heavy-tail empty blocks, we use a two-regime floor based on predicted carryover risk:
 \begin{equation}
     F_\text{empty}^{(b)} = \bar{E}_{\text{empty},r(b)} + k \cdot s_{\text{empty},r(b)},
     \label{eq:empty_floor}
 \end{equation}
-where $r(b)\in\{\text{low-carryover},\text{high-carryover}\}$ is assigned by whether the predicted carryover mean $R^{(b)}$ falls below or above the sensor-specific 75th percentile of $R^{(b)}$ over known-empty blocks. $\bar{E}_{\text{empty},r}$ and $s_{\text{empty},r}$ are the mean and standard deviation of carryover-adjusted block excess in regime $r$, and $k$ is a floor multiplier controlling the boundary between residual CO\textsubscript{2} and genuine occupancy signal.
+where $r(b)\in\{\text{low-carryover},\text{high-carryover}\}$ is assigned by whether the predicted carryover mean $R^{(b)}$ falls below or above the sensor-specific 75th percentile of $R^{(b)}$ over absent-labeled blocks. $\bar{E}_{\text{empty},r}$ and $s_{\text{empty},r}$ are the mean and standard deviation of carryover-adjusted block excess in regime $r$, and $k$ is a floor multiplier controlling the boundary between residual CO\textsubscript{2} and genuine occupancy signal.
 
 \paragraph{Carryover-aware block correction.}
 To reduce false positives from high initial CO\textsubscript{2} that decays across block boundaries, we subtract a no-occupancy carryover trajectory before computing block means. Let $n_b$ be the number of observed minutes in block $b$. Using a conservative decay parameter $\phi_\text{carry} = \min(\hat{\phi} + 1.28\,\text{SE}(\hat{\phi}), \phi_\text{max})$, we estimate the carryover mean as follows. If reliable pre-block context exists (last observation within 30 minutes before block start), let $E_\text{pre}$ be the robust pre-block excess (maximum of the last 10 observed pre-block minutes), $\Delta$ the minute gap from that observation to block start, and use
@@ -342,7 +348,7 @@ We then blend this physics-based scale with a data-driven component:
     S = \frac{1}{2} \left( \bar{E}_{\text{occ,blk}}^{(75)} - \bar{F}_\text{empty} \right) + \frac{1}{2} \cdot \bar{E}_\text{full}(n)
     \label{eq:scale}
 \end{equation}
-where $\bar{E}_{\text{occ,blk}}^{(75)}$ is the 75th percentile of \emph{block-mean} excess during known-occupied blocks, $\bar{F}_\text{empty}$ is a sensor-level reference floor (mean of block-specific $F_\text{empty}^{(b)}$ over analyzed blocks for that sensor), and $n = 240$ is the block duration in minutes. The finite-window correction is substantial at high $\hat{\phi}$: for $\hat{\phi} = 0.995$ and $n = 240$, $\bar{E}_\text{full}$ is approximately 42\% of the steady-state value $g/(1-\phi)$. The data-driven component makes cross-sensor estimates comparable even when $\hat{g}$ and $\hat{\phi}$ differ substantially between sensors, while the physics component prevents degenerate cases. We use a sensor-level reference floor $\bar{F}_\text{empty}$ in $S$ to keep normalization stable across blocks, while the block-specific floor $F_\text{empty}^{(b)}$ in Eq.~\eqref{eq:cal_excess} retains adaptivity to carryover risk.
+where $\bar{E}_{\text{occ,blk}}^{(75)}$ is the 75th percentile of \emph{block-mean} excess during present-labeled blocks, $\bar{F}_\text{empty}$ is a sensor-level reference floor (mean of block-specific $F_\text{empty}^{(b)}$ over analyzed blocks for that sensor), and $n = 240$ is the block duration in minutes. The finite-window correction is substantial at high $\hat{\phi}$: for $\hat{\phi} = 0.995$ and $n = 240$, $\bar{E}_\text{full}$ is approximately 42\% of the steady-state value $g/(1-\phi)$. The data-driven component makes cross-sensor estimates comparable even when $\hat{g}$ and $\hat{\phi}$ differ substantially between sensors, while the physics component prevents degenerate cases. We use a sensor-level reference floor $\bar{F}_\text{empty}$ in $S$ to keep normalization stable across blocks, while the block-specific floor $F_\text{empty}^{(b)}$ in Eq.~\eqref{eq:cal_excess} retains adaptivity to carryover risk.
 
 \subsubsection{Occupied minutes estimation}
 
@@ -365,6 +371,7 @@ This gate implies an approximate minimum detectable duration
     M_\text{min}^{(b)} \approx \frac{z\,\hat{\sigma}_\varepsilon\sqrt{m_b}}{\hat{g}},
 \end{equation}
 so short/weak occupancy events below this innovation-noise threshold are intentionally mapped to zero. In this cohort, $M_\text{min}$ is typically on the order of \SIrange{5}{35}{min} depending on sensor noise and generation rate.
+The additional \SI{15}{min} slack in the cap is a conservative allowance for partial-pair availability and near-threshold residual signal within a block; it avoids over-penalizing borderline detectable occupancy while still suppressing large false positives from pure decay trajectories.
 The complete estimation pipeline is illustrated in Fig.~\ref{fig:estimation_pipeline}, and Fig.~\ref{fig:physics_illustration} shows the model physics on example data.
 
 \begin{figure}[htbp]
@@ -515,7 +522,7 @@ These criteria were used to select the floor multiplier $k$ (Section~\ref{sec:bl
 \begin{enumerate}
     \item[C1.] \textbf{Label = 0 mean unclamped minutes} (${<}\SI{15}{min}$): For blocks where the occupant self-reported absence for the entire four-hour period, the mean estimated duration should be small. ``Unclamped'' means estimates are computed using the same model without forcing label = 0 blocks to zero.
 
-    \item[C2.] \textbf{Label = 0 \% under \SI{5}{min}} (${>}60\%$): The majority of known-empty blocks should produce near-zero duration estimates. This is a stronger test than the mean criterion, requiring consistent (not just average) recognition of empty conditions.
+    \item[C2.] \textbf{Label = 0 \% under \SI{5}{min}} (${>}60\%$): The majority of absent-labeled blocks should produce near-zero duration estimates. This is a stronger test than the mean criterion, requiring consistent (not just average) recognition of empty conditions.
 \end{enumerate}
 
 \subsubsection{Independent evaluation criteria (E1--E4)}
@@ -546,7 +553,7 @@ To demonstrate that the block-excess approach adds value beyond simpler heuristi
     \[
     \min_{u_t \ge 0}\;\sum_t (y_t-u_t)^2 + \lambda_1 \sum_t |u_t| + \lambda_2 \sum_t |u_t-u_{t-1}|,
     \]
-    where $y_t = E_t - \hat{\phi}E_{t-1}$. Block-level minutes are obtained by summing $u_t/\hat{g}$ within each block and clipping to $[0,240]$. Tuning parameters $(\lambda_1,\lambda_2)$ are fixed in the pipeline configuration and held constant across sensors.
+    where $y_t = E_t - \hat{\phi}E_{t-1}$. Block-level minutes are obtained by summing $u_t/\hat{g}$ within each block and clipping to $[0,240]$. For reproducibility, fused-lasso penalties are calibrated per sensor from absent-labeled innovation noise: $\lambda_1 = 0.5\,\hat{\sigma}_{\varepsilon,\text{empty}}$ and $\lambda_2 = 1.0\,\hat{\sigma}_{\varepsilon,\text{empty}}$. ADMM settings are fixed to $\rho=1.0$, max\_iter $=100$, tol $=10^{-4}$. Per-sensor values are reported in Table~\ref{tab:fused_hparams}.
 \end{itemize}
 Each baseline is evaluated on the same C1 and C2 criteria as the block-excess estimator.
 
@@ -616,12 +623,38 @@ Fig.~\ref{fig:sensor_params} visualizes the distribution of sensor parameters ac
     \label{fig:sensor_params}
 \end{figure}
 
+\subsubsection{High-baseline sensor robustness}
+
+Sensor 22168412 has a notably elevated baseline (\SI{542}{ppm}) relative to the cohort median (\SI{419}{ppm}), which could reflect local ventilation conditions or sensor offset. To test whether this sensor drives conclusions, we ran two sensitivity checks: (i) excluding the high-baseline sensor entirely, and (ii) forcing that sensor's baseline to the cohort median while leaving all other model components unchanged. Results are summarized in Table~\ref{tab:high_baseline_sens} and Fig.~\ref{fig:high_baseline_sens}. Core diagnostics remain stable (E1/E2 and empty-room metrics), and forcing a common baseline changes the high-baseline sensor's mean present-block estimate by only \SI{-0.6}{min}. This indicates that the main conclusions are not dominated by a single high-baseline sensor.
+
+\begin{table}[htbp]
+\centering
+\caption{Sensitivity of key diagnostics to the highest-baseline sensor (22168412).}
+\label{tab:high_baseline_sens}
+\begin{tabular}{lcccccc}
+\toprule
+Scenario & C1 (\si{min}) & C2 (\%) & Label=1 mean (\si{min}) & E1 & E2 & $\Delta$ high-sensor mean (\si{min}) \\
+\midrule
+Full data & 11.23 & 80.3 & 38.4 & 1.442 & 0.261 & 0.00 \\
+Exclude high-baseline sensor & 11.54 & 80.9 & 41.1 & 1.436 & 0.251 & -13.26 \\
+Force common baseline on high sensor & 11.22 & 80.3 & 38.3 & 1.442 & 0.261 & -0.62 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/fig17_high_baseline_sensitivity.pdf}
+    \caption{High-baseline sensor sensitivity analysis. Core validation metrics remain stable when excluding the highest-baseline sensor (22168412) or forcing its baseline to the cohort median.}
+    \label{fig:high_baseline_sens}
+\end{figure}
+
 % -----------------------------------------------------------------------------
 \subsection{Block-level duration estimates}
 \label{sec:block_results}
 % -----------------------------------------------------------------------------
 
-Table~\ref{tab:block_summary} summarizes the estimated occupancy duration by occupancy label. For known-absent blocks (label = 0), the unclamped estimates average \SI{11.2}{min} with a block-level median of \SI{0.0}{min}, matching the C1 calibration diagnostic exactly (both computed from the same unclamped re-estimation). Overall, 80.3\% of absent blocks estimate under \SI{5}{min}, confirming that the method correctly identifies empty rooms in the large majority of cases. For downstream use, label = 0 blocks are clamped to zero. For known-present blocks (label = 1), the mean estimated duration is \SI{38.4}{min} with a median of \SI{0.0}{min}; 45.8\% of occupied blocks produce nonzero estimates. This right-skewed distribution reflects both the conservative empty-room floor and the innovation detectability gate: many short/weak occupancy episodes fall below the innovation-noise threshold $M_\text{min}^{(b)}$ and are intentionally mapped to zero, while blocks with sustained presence remain nonzero.
+Table~\ref{tab:block_summary} summarizes the estimated occupancy duration by occupancy label. For absent-labeled blocks (label = 0), the unclamped estimates average \SI{11.2}{min} with a block-level median of \SI{0.0}{min}, matching the C1 calibration diagnostic exactly (both computed from the same unclamped re-estimation). Overall, 80.3\% of absent-labeled blocks estimate under \SI{5}{min}, confirming that the method correctly identifies empty rooms in the large majority of cases. For downstream use, label = 0 blocks are clamped to zero. For present-labeled blocks (label = 1), the mean estimated duration is \SI{38.4}{min} with a median of \SI{0.0}{min}; 45.8\% of occupied blocks produce nonzero estimates. This right-skewed distribution reflects both the conservative empty-room floor and the innovation detectability gate: many short/weak occupancy episodes fall below the innovation-noise threshold $M_\text{min}^{(b)}$ and are intentionally mapped to zero, while blocks with sustained presence remain nonzero.
 
 \begin{table}[htbp]
 \centering
@@ -698,8 +731,8 @@ Tier & Test & Value & Criterion & Pass? & Interpretation \\
 & C2-OOS: \% under 5~min & 77.2\% & ${>}50\%$ & YES & Majority of held-out absent blocks near zero \\
 \midrule
 \multicolumn{6}{l}{\emph{Independent evaluation criteria}} \\
-& E1: LOO mean relative MAE & 1.45 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
-& E2: LOO mean Spearman $\rho$ & 0.275 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
+& E1: LOO mean relative MAE & 1.44 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
+& E2: LOO mean Spearman $\rho$ & 0.261 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
 & E3: Max $\phi$ sensitivity (\%) & 78.0\% & ${<}200\%$ & YES & Smooth response to decay parameter \\
 & E4: \% blocks high confidence & 45.2\% & ${>}40\%$ & YES & Substantial fraction of estimates have tight uncertainty \\
 \bottomrule
@@ -708,12 +741,12 @@ Tier & Test & Value & Criterion & Pass? & Interpretation \\
 
 \subsubsection{Label = 0 sanity check}
 
-The mean unclamped estimated duration for the 239~known-empty blocks is \SI{11.2}{min}, below the \SI{15}{min} criterion. Of these blocks, 80.3\% estimate less than \SI{5}{min} of occupancy, with a heavy concentration near zero and a tail of larger residual-duration false positives for the remaining 19.7\% of blocks (Fig.~\ref{fig:label0_validation}).
+The mean unclamped estimated duration for the 239~absent-labeled blocks is \SI{11.2}{min}, below the \SI{15}{min} criterion. Of these blocks, 80.3\% estimate less than \SI{5}{min} of occupancy, with a heavy concentration near zero and a tail of larger residual-duration false positives for the remaining 19.7\% of blocks (Fig.~\ref{fig:label0_validation}).
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/fig06_validation_label0.pdf}
-    \caption{Distribution of unclamped estimated duration for known-empty (label = 0) blocks. The majority cluster at or near zero, with a tail of false positives from blocks where residual CO\textsubscript{2} from prior occupancy exceeds the per-sensor empty-room floor.}
+    \caption{Distribution of unclamped estimated duration for absent-labeled (label = 0) blocks. The majority cluster at or near zero, with a tail of false positives from blocks where residual CO\textsubscript{2} from prior occupancy exceeds the per-sensor empty-room floor.}
     \label{fig:label0_validation}
 \end{figure}
 
@@ -721,7 +754,7 @@ The 19.7\% of empty blocks that estimate above \SI{5}{min} represent cases where
 
 \subsubsection{Leave-one-sensor-out cross-validation}
 
-Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean relative MAE is 1.45 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.275 (criterion: ${>}0.2$).
+Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean relative MAE is 1.44 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.261 (criterion: ${>}0.2$).
 
 \begin{table}[htbp]
 \centering
@@ -732,25 +765,25 @@ Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, 
 \toprule
 Sensor ID & Room & $\hat{\phi}_\text{own}$ & $\hat{g}_\text{own}$ & $\hat{g}_\text{cross}$ & MAE & Rel.\ MAE & $\rho$ \\
 \midrule
-20233647 & Single & 0.992 & 18.9 & 19.2 & 40.3 & 1.32 & 0.59 \\
-20233665 & Single & 0.995 & 30.5 & 18.9 & 43.2 & 2.17 & 0.39 \\
-20233681 & Single & 0.970 & 60.0 & 18.9 & 61.3 & 1.95 & -0.38 \\
-20233685 & Single & 0.991 & 14.5 & 19.2 & 49.4 & 0.84 & 0.09 \\
-20251591 & Single & 0.987 & 11.9 & 19.2 & 27.1 & 1.26 & 0.29 \\
-22165976 & Shared & 0.995 & 16.3 & 19.2 & 61.7 & 0.73 & 0.23 \\
+20233647 & Single & 0.992 & 18.9 & 19.2 & 46.9 & 1.54 & 0.59 \\
+20233665 & Single & 0.995 & 30.5 & 18.9 & 58.2 & 2.92 & 0.02 \\
+20233681 & Single & 0.970 & 60.0 & 18.9 & 58.4 & 1.86 & -0.21 \\
+20233685 & Single & 0.991 & 14.5 & 19.2 & 51.6 & 0.88 & -0.07 \\
+20251591 & Single & 0.987 & 11.9 & 19.2 & 25.3 & 1.18 & 0.38 \\
+22165976 & Shared & 0.995 & 16.3 & 19.2 & 70.9 & 0.84 & -0.09 \\
 22165978 & Single & 0.994 & 5.4 & 19.2 & 4.2 & 1.49 & 0.76 \\
-22165989 & Single & 0.995 & 22.8 & 18.9 & 56.2 & 2.19 & 0.40 \\
-22165990 & Single & 0.970 & 26.2 & 18.9 & 64.0 & 0.85 & -0.05 \\
-22165993 & Single & 0.986 & 30.2 & 18.9 & 73.2 & 1.36 & 0.26 \\
-22165994 & Shared & 0.987 & 7.7 & 19.2 & 19.3 & 1.47 & 0.45 \\
-22168412 & Shared & 0.984 & 19.2 & 18.9 & 21.6 & 1.72 & 0.29 \\
+22165989 & Single & 0.995 & 22.8 & 18.9 & 40.2 & 1.57 & 0.60 \\
+22165990 & Single & 0.970 & 26.2 & 18.9 & 63.1 & 0.84 & -0.07 \\
+22165993 & Single & 0.986 & 30.2 & 18.9 & 70.2 & 1.30 & 0.34 \\
+22165994 & Shared & 0.987 & 7.7 & 19.2 & 18.1 & 1.37 & 0.52 \\
+22168412 & Shared & 0.984 & 19.2 & 18.9 & 18.9 & 1.51 & 0.37 \\
 \midrule
-\multicolumn{5}{l}{Mean} & 43.5 & 1.45 & 0.275 \\
+\multicolumn{5}{l}{Mean} & 43.8 & 1.44 & 0.261 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165994 with $\rho = 0.59$), while a subset remains weak (e.g., 20233681 with $\rho \approx 0.00$) or slightly negative (e.g., 22165990 with $\rho = -0.16$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.47 and IQR [1.08, 1.73], while Spearman $\rho$ has median 0.30 and IQR [0.11, 0.47]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
+Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165989 with $\rho = 0.60$), while a subset remains weak or negative (e.g., 20233681 with $\rho = -0.21$, 22165976 with $\rho = -0.09$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.43 and IQR [1.10, 1.55], while Spearman $\rho$ has median 0.36 and IQR [$-0.07$, 0.54]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
 
 \subsubsection{Sensitivity analysis}
 
@@ -763,7 +796,7 @@ Fig.~\ref{fig:sensitivity_phi} shows the sensitivity of estimated duration to th
     \label{fig:sensitivity_phi}
 \end{figure}
 
-Fig.~\ref{fig:sensitivity_gen} shows the sensitivity to the generation rate multiplier. Scaling the generation rate from $0.5\times$ to $2.0\times$ produces a monotonic decrease in estimated duration from \SI{59.8}{min} to \SI{23.5}{min}, consistent with the physics: higher generation rates produce more CO\textsubscript{2} per minute of occupancy, so a given observed excess corresponds to fewer occupied minutes.
+Fig.~\ref{fig:sensitivity_gen} shows the sensitivity to the generation rate multiplier. Scaling the generation rate from $0.5\times$ to $2.0\times$ produces a monotonic decrease in estimated duration from \SI{60.0}{min} to \SI{24.0}{min}, consistent with the physics: higher generation rates produce more CO\textsubscript{2} per minute of occupancy, so a given observed excess corresponds to fewer occupied minutes.
 
 \begin{figure}[htbp]
     \centering
@@ -982,9 +1015,34 @@ Fig.~\ref{fig:baseline_comparison} compares the block-excess estimator against s
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{figures/fig14_baseline_comparison.pdf}
-    \caption{Comparison of duration estimation methods on empty-room specificity.  (a)~C1: mean estimated minutes for known-empty blocks (lower is better).  (b)~C2: percentage of empty blocks estimating under \SI{5}{min} (higher is better).  (c)~Mean estimated minutes for occupied blocks.  The block-excess method achieves the calibration targets for empty-room specificity; baselines illustrate the trade-offs of simpler heuristics.}
+    \caption{Comparison of duration estimation methods on empty-room specificity.  (a)~C1: mean estimated minutes for absent-labeled blocks (lower is better).  (b)~C2: percentage of absent-labeled blocks estimating under \SI{5}{min} (higher is better).  (c)~Mean estimated minutes for present-labeled blocks.  The block-excess method achieves the calibration targets for empty-room specificity; baselines illustrate the trade-offs of simpler heuristics.}
     \label{fig:baseline_comparison}
 \end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Per-sensor fused-lasso comparator hyperparameters used in this study. Noise scale is estimated from absent-labeled innovation residuals; penalties are $\lambda_1 = 0.5\times$noise and $\lambda_2 = 1.0\times$noise.}
+\label{tab:fused_hparams}
+\small
+\begin{tabular}{lccc}
+\toprule
+Sensor ID & Noise scale & $\lambda_1$ & $\lambda_2$ \\
+\midrule
+20233647 & 6.57 & 3.29 & 6.57 \\
+20233665 & 10.26 & 5.13 & 10.26 \\
+20233681 & 22.95 & 11.48 & 22.95 \\
+20233685 & 3.58 & 1.79 & 3.58 \\
+20251591 & 4.59 & 2.29 & 4.59 \\
+22165976 & 2.11 & 1.05 & 2.11 \\
+22165978 & 6.31 & 3.15 & 6.31 \\
+22165989 & 9.82 & 4.91 & 9.82 \\
+22165990 & 7.59 & 3.79 & 7.59 \\
+22165993 & 6.92 & 3.46 & 6.92 \\
+22165994 & 3.53 & 1.77 & 3.53 \\
+22168412 & 6.31 & 3.16 & 6.31 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % -----------------------------------------------------------------------------
 \subsection{Semisynthetic validation}
@@ -1035,7 +1093,7 @@ This validation is ``model-matched'' in the sense that both injection and estima
 
 The block-level excess method has several properties that make it well suited for CO\textsubscript{2}-based duration estimation in residential settings.
 
-\textbf{Physics-based with minimal calibration.} The method is grounded in well-understood CO\textsubscript{2} mass balance physics (Eq.~\ref{eq:ar1}) and requires only known-empty calibration periods---not labeled duration data---for per-sensor adaptation. This makes it deployable in settings where binary presence/absence labels are available (e.g., from access card data or simple surveys) but minute-level duration ground truth is not.
+\textbf{Physics-based with minimal calibration.} The method is grounded in well-understood CO\textsubscript{2} mass balance physics (Eq.~\ref{eq:ar1}) and requires only absent-labeled blocks---not labeled minute-level duration data---for per-sensor adaptation. This makes it deployable in settings where binary presence/absence labels are available (e.g., from access card data or simple surveys) but minute-level duration ground truth is not.
 
 \textbf{Block-level averaging exploits the SNR advantage.} By working at the four-hour block level rather than the minute level, the method aggregates the cumulative CO\textsubscript{2} signal over a long window. While the AR(1) autocorrelation ($\hat{\phi} \approx 0.995$) limits the effective noise reduction below the i.i.d.\ $\sqrt{n}$ rate, the block-level approach still transforms an intractable minute-level estimation problem into a tractable one. We verified this empirically by implementing a minute-level fused lasso deconvolution approach \cite{tibshirani2005sparsity} that attempts to reconstruct the occupancy signal at one-minute resolution. The fused lasso baseline underperformed the proposed method on empty-room specificity (Section~\ref{sec:discussion}, Fig.~\ref{fig:baseline_comparison}), consistent with the fundamental SNR limitation: at $\phi \approx 0.995$, the minute-level occupancy innovation (\SIrange{5}{60}{ppm}) is comparable to the noise standard deviation (\SIrange{5}{40}{ppm}), yielding SNR of order unity. Block-level aggregation overcomes this by integrating the occupancy-driven excess over 240 minutes.
 
@@ -1095,6 +1153,10 @@ The authors declare that they have no known competing financial interests or per
 \section*{Acknowledgments}
 
 The authors thank the CRIPT research team for data collection and the dormitory residents who participated in the study.
+
+\section*{Ethics approval and consent to participate}
+
+This work is a secondary analysis of de-identified data collected as part of the CRIPT human-subjects study. Data collection procedures (including participant surveys) were conducted under institutional ethics oversight, and participants provided informed consent at the time of data collection.
 
 \section*{Data availability}
 

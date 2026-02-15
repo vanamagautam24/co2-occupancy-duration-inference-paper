@@ -789,6 +789,7 @@ def fit_sensor_physics(
     df_sensor: pl.DataFrame,
     cfg: Config,
     co2_all_sensor: pl.DataFrame | None = None,
+    baseline_override: float | None = None,
 ) -> SensorFit:
     """Fit AR(1) physics parameters for a single sensor.
 
@@ -809,7 +810,9 @@ def fit_sensor_physics(
     # Use 1st percentile of ALL data for this sensor (not just label=0 periods).
     # This captures true outdoor/ambient air (~400-420 ppm) rather than
     # residual CO2 from prior occupancy during "empty" periods.
-    if co2_all_sensor is not None and co2_all_sensor.height >= 100:
+    if baseline_override is not None:
+        baseline = float(baseline_override)
+    elif co2_all_sensor is not None and co2_all_sensor.height >= 100:
         baseline = float(co2_all_sensor.select(
             pl.col("co2_ppm").quantile(0.01)
         ).item())
@@ -856,9 +859,9 @@ def fit_sensor_physics(
             sigma2 = float(np.sum(resid * resid) / (n - 1))
             phi_se = float(np.sqrt(max(1e-12, sigma2 / den)))
             # Bayesian shrinkage toward physical default.
-            # With 1-minute data, OLS overshoots phi toward 1.0 due to
-            # extreme autocorrelation. Shrinkage pulls toward the physical
-            # prior (typical dorm room air exchange ~0.03/min => phi ~0.97).
+            # Under strong autocorrelation and transient ventilation events,
+            # unconstrained OLS can be unstable. Shrinkage stabilizes phi
+            # toward a physically plausible dorm-room prior (~0.97).
             prior_weight = 180.0
             lam = prior_weight / (prior_weight + float(len(x)))
             phi_hat = float(lam * cfg.phi_default + (1.0 - lam) * phi_ls)
@@ -1322,6 +1325,24 @@ def _admm_fused_lasso(
     return np.maximum(u, 0.0)
 
 
+def _calibrate_fused_lasso_lambdas(
+    y_full: np.ndarray,
+    present_arr: np.ndarray,
+    fit: SensorFit,
+) -> tuple[float, float, float]:
+    """Calibrate fused-lasso penalties from label=0 innovation noise."""
+    label0_mask = present_arr == 0
+    y_label0 = y_full[label0_mask & ~np.isnan(y_full)]
+    if len(y_label0) >= 50:
+        mad = float(np.median(np.abs(y_label0 - np.median(y_label0))))
+        noise_scale = max(1.4826 * mad, 1.0)
+    else:
+        noise_scale = fit.sigma_noise
+    lambda1 = 0.5 * noise_scale
+    lambda2 = 1.0 * noise_scale
+    return float(lambda1), float(lambda2), float(noise_scale)
+
+
 def estimate_block_minutes_fused_lasso(
     fit: SensorFit,
     cfg: Config,
@@ -1383,18 +1404,8 @@ def estimate_block_minutes_fused_lasso(
     segment_starts = np.where(gap_mask)[0]
     segment_ends = np.append(segment_starts[1:], len(y_full))
 
-    # Auto-calibrate lambdas from label=0 data
-    label0_mask = present_arr == 0
-    y_label0 = y_full[label0_mask & ~np.isnan(y_full)]
-
-    if len(y_label0) >= 50:
-        mad = float(np.median(np.abs(y_label0 - np.median(y_label0))))
-        noise_scale = max(1.4826 * mad, 1.0)
-    else:
-        noise_scale = fit.sigma_noise
-
-    lambda1 = 0.5 * noise_scale
-    lambda2 = 1.0 * noise_scale
+    # Auto-calibrate penalties from label=0 innovation scale.
+    lambda1, lambda2, noise_scale = _calibrate_fused_lasso_lambdas(y_full, present_arr, fit)
 
     rho = cfg.fused_lasso_admm_rho
     max_iter = cfg.fused_lasso_admm_max_iter
@@ -1524,6 +1535,9 @@ def estimate_block_minutes_fused_lasso(
             pl.lit(fit.phi_hat).alias("phi_hat"),
             pl.lit(fit.g_hat).alias("generation_hat"),
             pl.lit(fit.baseline).alias("co2_baseline"),
+            pl.lit(lambda1).alias("fused_lambda1"),
+            pl.lit(lambda2).alias("fused_lambda2"),
+            pl.lit(noise_scale).alias("fused_noise_scale"),
         ])
     )
 
@@ -2385,6 +2399,160 @@ def validate_baseline_comparators(
     return pl.DataFrame(rows) if rows else pl.DataFrame()
 
 
+def summarize_fused_lasso_hyperparams(
+    fits: list[SensorFit],
+    cfg: Config,
+) -> pl.DataFrame:
+    """Report per-sensor fused-lasso penalty values for reproducibility."""
+    rows = []
+    for fit in fits:
+        arr = fit.arr
+        y_full = np.nan_to_num(arr["innovation"].to_numpy().astype(np.float64), nan=0.0)
+        present_arr = arr["present"].to_numpy().astype(int)
+        lambda1, lambda2, noise_scale = _calibrate_fused_lasso_lambdas(y_full, present_arr, fit)
+        rows.append({
+            "sensor_id": int(fit.sensor_id),
+            "room_type": fit.room_type,
+            "noise_scale": float(noise_scale),
+            "lambda1": float(lambda1),
+            "lambda2": float(lambda2),
+            "admm_rho": float(cfg.fused_lasso_admm_rho),
+            "admm_max_iter": int(cfg.fused_lasso_admm_max_iter),
+            "admm_tol": float(cfg.fused_lasso_admm_tol),
+        })
+    return pl.DataFrame(rows).sort("sensor_id") if rows else pl.DataFrame()
+
+
+def validate_high_baseline_sensor_sensitivity(
+    bundle: DataBundle,
+    fits: list[SensorFit],
+    cfg: Config,
+    block_est: pl.DataFrame,
+    unclamped_label0: pl.DataFrame,
+    loo_val: pl.DataFrame,
+) -> pl.DataFrame:
+    """Robustness checks for the highest-baseline sensor.
+
+    Scenarios:
+      - full_data: reference (all sensors)
+      - exclude_high_baseline_sensor: remove high-baseline sensor rows
+      - force_common_baseline_high_sensor: re-estimate only the high-baseline
+        sensor using a common baseline (median of other sensors)
+    """
+    if not fits:
+        return pl.DataFrame()
+
+    high_fit = max(fits, key=lambda f: f.baseline)
+    high_sensor = int(high_fit.sensor_id)
+    other_baselines = [f.baseline for f in fits if int(f.sensor_id) != high_sensor]
+    if not other_baselines:
+        return pl.DataFrame()
+    common_baseline = float(np.median(other_baselines))
+
+    def _summary(
+        scenario: str,
+        be: pl.DataFrame,
+        l0_unclamped: pl.DataFrame,
+        loo_df: pl.DataFrame | None,
+    ) -> dict[str, float | str]:
+        l1 = be.filter(pl.col("present") == 1)
+        l0_vals = l0_unclamped["minutes_p50"].to_numpy() if l0_unclamped.height > 0 else np.array([0.0])
+        high_l1 = l1.filter(pl.col("sensor_id") == high_sensor)["estimated_occupied_minutes"] if l1.height > 0 else None
+        high_l1_mean = (
+            float(high_l1.mean())
+            if high_l1 is not None and high_l1.len() > 0 and high_l1.mean() is not None
+            else 0.0
+        )
+        row: dict[str, float | str] = {
+            "scenario": scenario,
+            "high_sensor_id": str(high_sensor),
+            "high_sensor_baseline": float(high_fit.baseline),
+            "reference_common_baseline": float(common_baseline),
+            "c1_mean_label0_unclamped": float(np.mean(l0_vals)),
+            "c2_pct_label0_under_5min": float(np.mean(l0_vals < 5.0) * 100.0),
+            "label1_mean_minutes": float(l1["estimated_occupied_minutes"].mean()) if l1.height > 0 else 0.0,
+            "label1_median_minutes": float(l1["estimated_occupied_minutes"].median()) if l1.height > 0 else 0.0,
+            "label1_mean_uncertainty": float(l1["uncertainty_width"].mean()) if l1.height > 0 else 0.0,
+            "high_sensor_label1_mean_minutes": high_l1_mean,
+        }
+        if loo_df is not None and loo_df.height > 0:
+            row["e1_mean_relative_mae"] = float(loo_df["relative_mae"].mean())
+            row["e2_mean_spearman"] = float(loo_df["rank_correlation"].mean())
+        else:
+            row["e1_mean_relative_mae"] = float("nan")
+            row["e2_mean_spearman"] = float("nan")
+        return row
+
+    rows: list[dict[str, float | str]] = []
+
+    # Reference scenario
+    rows.append(_summary("full_data", block_est, unclamped_label0, loo_val))
+
+    # Exclude high-baseline sensor
+    be_excl = block_est.filter(pl.col("sensor_id") != high_sensor)
+    l0_excl = unclamped_label0.filter(pl.col("sensor_id") != high_sensor)
+    loo_excl = loo_val.filter(pl.col("sensor_id") != high_sensor) if loo_val.height > 0 else pl.DataFrame()
+    rows.append(_summary("exclude_high_baseline_sensor", be_excl, l0_excl, loo_excl))
+
+    # Force common baseline on high-baseline sensor only
+    joined = (
+        bundle.co2_minutes
+        .join(bundle.occ_minute, on=["sensor_id", "timestamp_min"], how="inner")
+        .sort(["sensor_id", "timestamp_min"])
+        .with_columns(
+            pl.col("co2_ppm")
+            .rolling_median(window_size=cfg.smoothing_window_minutes)
+            .over("sensor_id")
+            .alias("co2_smooth")
+        )
+        .with_columns(pl.col("co2_smooth").fill_null(pl.col("co2_ppm")))
+        .with_columns(
+            pl.col("present").max().over(["sensor_id", "timestamp_min"]).alias("room_present")
+        )
+    )
+    sdf_high = joined.filter(pl.col("sensor_id") == high_sensor).sort("timestamp_min")
+    co2_high = bundle.co2_minutes.filter(pl.col("sensor_id") == high_sensor)
+    fit_forced = fit_sensor_physics(
+        sdf_high,
+        cfg,
+        co2_all_sensor=co2_high,
+        baseline_override=common_baseline,
+    )
+    rng_forced = np.random.default_rng(cfg.seed + 9101)
+    be_high_forced = _estimate_blocks(fit_forced, cfg, rng_forced, clamp_absent=True)
+    rng_forced_u = np.random.default_rng(cfg.seed + 9102)
+    l0_high_forced = _estimate_blocks(fit_forced, cfg, rng_forced_u, clamp_absent=False).filter(
+        pl.col("present") == 0
+    )
+
+    be_forced = pl.concat(
+        [block_est.filter(pl.col("sensor_id") != high_sensor), be_high_forced],
+        how="vertical",
+    )
+    l0_forced = pl.concat(
+        [unclamped_label0.filter(pl.col("sensor_id") != high_sensor), l0_high_forced],
+        how="vertical",
+    )
+    forced_row = _summary(
+        "force_common_baseline_high_sensor",
+        be_forced,
+        l0_forced,
+        loo_val,  # keep LOO reference unchanged; this scenario is baseline-only
+    )
+    forced_row["forced_high_sensor_baseline"] = float(common_baseline)
+    rows.append(forced_row)
+
+    out = pl.DataFrame(rows)
+    if out.height > 0:
+        base_high_mean = float(out.filter(pl.col("scenario") == "full_data")
+                               .select("high_sensor_label1_mean_minutes").item())
+        out = out.with_columns(
+            (pl.col("high_sensor_label1_mean_minutes") - pl.lit(base_high_mean))
+            .alias("delta_high_sensor_label1_mean")
+        )
+    return out
+
+
 # -------------------------------------------------------------------
 # ABLATION LADDER (method evolution)
 # -------------------------------------------------------------------
@@ -3170,6 +3338,54 @@ def fig16_ablation_ladder(ablation_df: pl.DataFrame, out_path: Path, fmt: str, d
     axes[1].set_ylabel("C2-OOS % under 5 min")
     axes[1].set_title("(b) C2-OOS Across Ablation Steps")
     axes[1].legend(fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(out_path, format=fmt, dpi=dpi)
+    plt.close(fig)
+
+
+def fig17_high_baseline_sensitivity(sens_df: pl.DataFrame, out_path: Path, fmt: str, dpi: int):
+    """Robustness of key metrics to high-baseline sensor handling."""
+    plt = setup_matplotlib()
+    if sens_df.height == 0:
+        return
+
+    order = ["full_data", "exclude_high_baseline_sensor", "force_common_baseline_high_sensor"]
+    df = sens_df.with_columns(
+        pl.col("scenario").replace_strict(
+            order,
+            ["Full", "Exclude high-baseline sensor", "Force common baseline (high sensor)"],
+            default=pl.col("scenario"),
+        ).alias("scenario_label")
+    )
+    labels = [row["scenario_label"] for row in df.to_dicts()]
+    x = np.arange(len(labels))
+
+    c1 = df["c1_mean_label0_unclamped"].to_numpy()
+    l1 = df["label1_mean_minutes"].to_numpy()
+    high_l1 = df["high_sensor_label1_mean_minutes"].to_numpy()
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.8))
+
+    axes[0].bar(x, c1, color=C_STEEL, alpha=0.85, edgecolor="white")
+    axes[0].axhline(15, color="red", linestyle="--", linewidth=1.2, label="C1 in-sample criterion")
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(labels, rotation=20, ha="right", fontsize=8)
+    axes[0].set_ylabel("C1 mean unclamped (label=0)")
+    axes[0].set_title("(a) Empty-room calibration robustness")
+    axes[0].legend(fontsize=8)
+
+    axes[1].bar(x, l1, color=C_TEAL, alpha=0.85, edgecolor="white")
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(labels, rotation=20, ha="right", fontsize=8)
+    axes[1].set_ylabel("Label=1 mean minutes")
+    axes[1].set_title("(b) Cohort-level occupied-block mean")
+
+    axes[2].bar(x, high_l1, color=C_CORAL, alpha=0.85, edgecolor="white")
+    axes[2].set_xticks(x)
+    axes[2].set_xticklabels(labels, rotation=20, ha="right", fontsize=8)
+    axes[2].set_ylabel("High-baseline sensor label=1 mean")
+    axes[2].set_title("(c) High-baseline sensor impact")
 
     fig.tight_layout()
     fig.savefig(out_path, format=fmt, dpi=dpi)
@@ -4383,6 +4599,12 @@ def main() -> None:
     if baseline_comp.height > 0:
         baseline_comp.write_csv(out / "validation" / "baseline_comparators.csv")
 
+    high_baseline_sens = validate_high_baseline_sensor_sensitivity(
+        bundle, fits, cfg, block_est, unclamped_label0, loo_val
+    )
+    if high_baseline_sens.height > 0:
+        high_baseline_sens.write_csv(out / "validation" / "high_baseline_sensor_sensitivity.csv")
+
     ablation_ladder = run_ablation_ladder(bundle, fits, cfg)
     if ablation_ladder.height > 0:
         ablation_ladder.write_csv(out / "validation" / "ablation_ladder.csv")
@@ -4420,6 +4642,11 @@ def main() -> None:
         detectability_tbl.write_csv(out / "tables" / "table11_detectability_thresholds.csv")
     if ablation_ladder.height > 0:
         ablation_ladder.write_csv(out / "tables" / "table12_ablation_ladder.csv")
+    if high_baseline_sens.height > 0:
+        high_baseline_sens.write_csv(out / "tables" / "table13_high_baseline_sensor_sensitivity.csv")
+    fused_hparams = summarize_fused_lasso_hyperparams(fits, cfg)
+    if fused_hparams.height > 0:
+        fused_hparams.write_csv(out / "tables" / "table14_fused_lasso_hyperparams.csv")
 
     log(f"  Phase 4 complete ({time.time()-t3:.0f}s)")
 
@@ -4447,6 +4674,7 @@ def main() -> None:
         ("fig14_baseline_comparison", lambda: fig14_baseline_comparison(baseline_comp, fig_dir / f"fig14_baseline_comparison.{fmt}", fmt, dpi)),
         ("fig15_detectability", lambda: fig15_detectability(block_est, fig_dir / f"fig15_detectability_thresholds.{fmt}", fmt, dpi)),
         ("fig16_ablation_ladder", lambda: fig16_ablation_ladder(ablation_ladder, fig_dir / f"fig16_ablation_ladder.{fmt}", fmt, dpi)),
+        ("fig17_high_baseline_sensitivity", lambda: fig17_high_baseline_sensitivity(high_baseline_sens, fig_dir / f"fig17_high_baseline_sensitivity.{fmt}", fmt, dpi)),
     ]
 
     for name, job_fn in figure_jobs:

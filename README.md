@@ -70,8 +70,8 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 | C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
 | C1-OOS 5% trimmed mean | 12.08 min | descriptive | N/A (descriptive) |
 | C1-OOS tail contribution (top 5%) | 53.3% | descriptive | N/A (descriptive) |
-| E1 LOO mean relative MAE | 1.45 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.275 | > 0.2 | YES |
+| E1 LOO mean relative MAE | 1.44 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.261 | > 0.2 | YES |
 | E3 max phi sensitivity change | 78.0% | < 200% | YES |
 | E4 high-confidence blocks | 45.2% | > 40% | YES |
 
@@ -95,8 +95,11 @@ Baseline comparison is computed on a comparable room-level subset (`n_label0=177
 ## New Robustness Artifacts
 - Detectability diagnostics table: `research_outputs/tables/table11_detectability_thresholds.csv`
 - Ablation ladder table: `research_outputs/tables/table12_ablation_ladder.csv`
+- High-baseline sensor sensitivity table: `research_outputs/tables/table13_high_baseline_sensor_sensitivity.csv`
+- Fused-lasso per-sensor hyperparameters: `research_outputs/tables/table14_fused_lasso_hyperparams.csv`
 - Detectability figure: `research_outputs/figures/fig15_detectability_thresholds.pdf`
 - Ablation figure: `research_outputs/figures/fig16_ablation_ladder.pdf`
+- High-baseline sensitivity figure: `research_outputs/figures/fig17_high_baseline_sensitivity.pdf`
 
 ## Reproducing
 ```bash
@@ -109,4 +112,6 @@ Main generated artifacts:
 - Semisynthetic summary: `research_outputs/tables/table09_semisynthetic_summary.csv`
 - Detectability summary: `research_outputs/tables/table11_detectability_thresholds.csv`
 - Ablation ladder: `research_outputs/tables/table12_ablation_ladder.csv`
+- High-baseline sensitivity: `research_outputs/tables/table13_high_baseline_sensor_sensitivity.csv`
+- Fused-lasso hyperparameters: `research_outputs/tables/table14_fused_lasso_hyperparams.csv`
 - Paper: `research_outputs/paper/main.pdf`
