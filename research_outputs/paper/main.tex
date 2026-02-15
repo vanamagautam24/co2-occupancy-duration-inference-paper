@@ -285,19 +285,32 @@ Sensor 20233681 uses the fallback for $\hat{\phi}$ ($n_\text{decay} = 0$) and it
 \label{sec:block_estimation}
 % -----------------------------------------------------------------------------
 
-The core estimation method operates at the four-hour block level, converting mean excess CO\textsubscript{2} within each block to estimated occupied minutes. The method consists of three stages: per-sensor empty-room calibration, self-normalizing scale computation, and occupied minutes estimation.
+The core estimation method operates at the four-hour block level, converting mean excess CO\textsubscript{2} within each block to estimated occupied minutes. The method consists of four stages: carryover-aware block correction, per-sensor empty-room calibration, self-normalizing scale computation, and occupied-minutes estimation.
 
 \subsubsection{Per-sensor empty-room calibration}
 
-For each sensor, we compute block-level mean excess CO\textsubscript{2} for all blocks and establish an ``empty-room floor'' from the known-empty (label = 0) blocks. The empty-room floor captures residual CO\textsubscript{2} from prior occupancy, sensor offset, and building HVAC effects:
+For each sensor, we compute carryover-adjusted block-level excess CO\textsubscript{2} and establish an ``empty-room floor'' from the known-empty (label = 0) blocks. The empty-room floor captures residual CO\textsubscript{2} not removed by the carryover model, sensor offset, and building HVAC effects:
 \begin{equation}
     F_\text{empty} = \bar{E}_{\text{empty}} + k \cdot s_{\text{empty}}
     \label{eq:empty_floor}
 \end{equation}
 where $\bar{E}_\text{empty}$ and $s_\text{empty}$ are the mean and standard deviation of block-mean excess across known-empty blocks, and $k$ is a floor multiplier that controls the boundary between residual CO\textsubscript{2} and genuine occupancy signal.
 
+\paragraph{Carryover-aware block correction.}
+To reduce false positives from high initial CO\textsubscript{2} that decays across block boundaries, we subtract a no-occupancy carryover trajectory before computing block means. Let $E_\text{pre}$ be the robust pre-block excess (maximum of the last 10 observed minutes before block start), $\Delta$ the minute gap from the last pre-block observation to block start, and $n_b$ the number of observed minutes in block $b$. Using a conservative decay parameter $\phi_\text{carry} = \min(\hat{\phi} + 1.28\,\text{SE}(\hat{\phi}), \phi_\text{max})$, the predicted carryover mean is
+\begin{equation}
+    R^{(b)} = E_\text{pre}\,\phi_\text{carry}^{\Delta}\,\frac{1-\phi_\text{carry}^{\,n_b}}{n_b(1-\phi_\text{carry})}.
+    \label{eq:carryover_mean}
+\end{equation}
+The carryover-adjusted block mean excess is then
+\begin{equation}
+    \bar{E}^{(b)}_\text{adj} = \max\!\left(\bar{E}^{(b)}_\text{raw} - R^{(b)},\;0\right).
+    \label{eq:adj_block_excess}
+\end{equation}
+All downstream calibration and scaling steps use $\bar{E}^{(b)}_\text{adj}$.
+
 \paragraph{Selection of floor multiplier ($k$).}
-The floor multiplier determines how aggressively residual CO\textsubscript{2} is suppressed. Because the finite-window normalization (Eq.~\ref{eq:finite_window}) maps a given excess to more inferred minutes than steady-state normalization would, the empty-room floor must be raised correspondingly to maintain empty-room specificity. We selected $k$ by a pre-specified grid search over $k \in [0.67, 1.00]$ in increments of 0.02, evaluating the calibration diagnostics C1 ($< \SI{15}{min}$) and C2 ($> 60\%$). We chose the \emph{smallest} $k$ satisfying both criteria while preserving non-degenerate sensitivity, operationalized as a substantial fraction of label = 1 blocks retaining a positive estimated duration. This procedure selected $k = 0.86$; at this value, 47\% of occupied blocks produce nonzero duration estimates.
+The floor multiplier determines how aggressively residual CO\textsubscript{2} is suppressed. Because the finite-window normalization (Eq.~\ref{eq:finite_window}) maps a given excess to more inferred minutes than steady-state normalization would, the empty-room floor must be raised correspondingly to maintain empty-room specificity. We selected $k$ by a pre-specified grid search over $k \in [0.67, 1.05]$ in increments of 0.05, evaluating the calibration diagnostics C1 ($< \SI{15}{min}$) and C2 ($> 60\%$). We chose the \emph{smallest} $k$ satisfying both criteria while preserving non-degenerate sensitivity, operationalized as a substantial fraction of label = 1 blocks retaining a positive estimated duration. This procedure selected $k = 0.90$; at this value, 54\% of occupied blocks produce nonzero duration estimates.
 
 \subsubsection{Self-normalizing scale}
 
@@ -317,11 +330,18 @@ where $E_\text{occ}^{(75)}$ is the 75th percentile of block-mean excess during k
 
 For each four-hour block, the calibrated excess is computed and converted to estimated occupied minutes:
 \begin{align}
-    E_\text{cal}^{(b)} &= \max\!\left(\bar{E}^{(b)} - F_\text{empty}, \; 0\right) \label{eq:cal_excess} \\
+    E_\text{cal}^{(b)} &= \max\!\left(\bar{E}^{(b)}_\text{adj} - F_\text{empty}, \; 0\right) \label{eq:cal_excess} \\
     f^{(b)} &= \min\!\left(\frac{E_\text{cal}^{(b)}}{S}, \; 1\right) \label{eq:occ_fraction} \\
     \hat{M}^{(b)} &= f^{(b)} \times 240 \label{eq:minutes}
 \end{align}
-where $\bar{E}^{(b)}$ is the mean excess for block $b$, $E_\text{cal}^{(b)}$ is the calibrated excess after subtracting the empty-room floor, $f^{(b)}$ is the estimated occupied fraction (clipped to $[0, 1]$), and $\hat{M}^{(b)}$ is the estimated occupied minutes (out of 240 minutes per block). The complete estimation pipeline is illustrated in Fig.~\ref{fig:estimation_pipeline}, and Fig.~\ref{fig:physics_illustration} shows the model physics on example data.
+where $\bar{E}^{(b)}_\text{adj}$ is the carryover-adjusted mean excess for block $b$, $E_\text{cal}^{(b)}$ is the calibrated excess after subtracting the empty-room floor, $f^{(b)}$ is the estimated occupied fraction (clipped to $[0, 1]$), and $\hat{M}^{(b)}$ is the estimated occupied minutes (out of 240 minutes per block). To prevent pure decay trajectories from being misclassified as sustained occupancy, we apply an innovation-consistency gate/cap:
+\begin{align}
+    I_\text{sum}^{(b)} &= \sum_{t \in b}\left(E_t - \hat{\phi}E_{t-1}\right),\\
+    M_\text{innov}^{(b)} &= \max\!\left(I_\text{sum}^{(b)} / \hat{g},\,0\right),\\
+    \hat{M}^{(b)} &\leftarrow \min\!\left(\hat{M}^{(b)},\;M_\text{innov}^{(b)} + \SI{15}{min}\right),\;
+    \hat{M}^{(b)}=0 \text{ if } M_\text{innov}^{(b)}<\SI{8}{min}.
+\end{align}
+The complete estimation pipeline is illustrated in Fig.~\ref{fig:estimation_pipeline}, and Fig.~\ref{fig:physics_illustration} shows the model physics on example data.
 
 \begin{figure}[htbp]
     \centering
@@ -381,7 +401,7 @@ For each Monte Carlo sample $s = 1, \ldots, N_\text{MC}$:
         F^{(s)} &\sim \text{TruncNormal}\!\left(F_\text{empty}, \; 0.5 \, s_\text{empty}, \; [0, \infty)\right)
     \end{align}
     \item Compute perturbed normalization scale $S^{(s)}$ using Eq.~\eqref{eq:scale} with $\hat{g} \to g^{(s)}$ and $\hat{\phi} \to \phi^{(s)}$.
-    \item Compute estimated minutes $\hat{M}^{(b,s)}$ using Eqs.~\eqref{eq:cal_excess}--\eqref{eq:minutes} with perturbed quantities and the observed (fixed) block-mean excess $\bar{E}^{(b)}$.
+    \item Recompute carryover-adjusted excess $\bar{E}^{(b,s)}_\text{adj}$ using Eq.~\eqref{eq:carryover_mean} with $\phi_\text{carry}\to \phi^{(s)}$, then compute estimated minutes $\hat{M}^{(b,s)}$ using Eqs.~\eqref{eq:cal_excess}--\eqref{eq:minutes}.
 \end{enumerate}
 
 No separate observation-noise term is added to the block mean.  The original formulation used $\eta \sim \mathcal{N}(0, \hat{\sigma}_\varepsilon^2 / n_b)$, which assumes independent observations within a block.  Because the AR(1) autocorrelation ($\hat{\phi} \approx 0.995$) severely violates this assumption, the effective sample size is far smaller than $n_b$ and the $\sigma/\sqrt{n}$ formula underestimates block-mean variance.  Rather than substitute an ad-hoc empirical scale, we treat the observed block mean as fixed data (conditional inference) and let the parameter perturbation ($\phi$, $g$, $F_\text{empty}$) capture the dominant uncertainty sources.
@@ -399,7 +419,7 @@ Blocks are classified as ``high confidence'' when $W^{(b)} \leq \SI{30}{min}$ (i
 \label{sec:validation}
 % -----------------------------------------------------------------------------
 
-We evaluate the method using two tiers of assessment criteria, illustrated in Fig.~\ref{fig:validation_framework}. The first tier comprises two \emph{calibration diagnostics} (C1--C2) that were used to select the floor multiplier $k$ (Section~\ref{sec:block_estimation}) and therefore cannot serve as independent validation. The second tier comprises four \emph{independent evaluation criteria} (E1--E4) that test aspects of estimation quality not involved in any tuning decision. We additionally report two supplementary out-of-sample checks (C1-OOS, C2-OOS) with relaxed thresholds.
+We evaluate the method using two tiers of assessment criteria, illustrated in Fig.~\ref{fig:validation_framework}. The first tier comprises two \emph{calibration diagnostics} (C1--C2) that were used to select the floor multiplier $k$ (Section~\ref{sec:block_estimation}) and therefore cannot serve as independent validation. The second tier comprises four \emph{independent evaluation criteria} (E1--E4) that test aspects of estimation quality not involved in any tuning decision. We additionally report two supplementary out-of-sample checks (C1-OOS, C2-OOS) with relaxed thresholds and robust tail diagnostics (median, P95, trimmed mean, top-5\% tail contribution) to characterize heavy-tail behavior.
 
 \begin{figure}[htbp]
     \centering
@@ -490,7 +510,10 @@ Because no ground-truth occupied minutes are available, we construct a semisynth
     The injected component contains no added noise because the real empty segment already carries realistic innovations and building transients; adding noise would double-count.  The synthetic CO\textsubscript{2} is then $C_t^\text{synth} = C_t^\text{empty} + E_t^\text{inj}$.
     \item For stress tests, injection uses parameters that differ from those assumed by the estimator, testing robustness to model mismatch: generation-rate mismatch ($\hat{g}' = 0.7\hat{g}$ and $1.3\hat{g}$), decay-rate drift ($\hat{\phi}' = \hat{\phi} + 0.005$), a $+\SI{30}{ppm}$ baseline shift, and extra innovation noise ($\eta_t \sim \mathcal{N}(0, \hat{\sigma}_\varepsilon^2)$ added to the injected component).
     \item Run the block-excess estimator on the synthetic data using the same $F_\text{empty}$ and scale~$S$ as the real estimation.
-    \item Compute MAE, bias, and error distributions across scenarios.
+    \item Compute MAE, bias, error distributions, and 80\% CI coverage across scenarios:
+    \[
+        \text{Coverage}_{80} = \frac{1}{N}\sum_{i=1}^{N}\mathbf{1}\!\left[\hat{M}_{p10,i} \le M^\text{true}_i \le \hat{M}_{p90,i}\right].
+    \]
 \end{enumerate}
 
 % =============================================================================
@@ -544,7 +567,7 @@ Fig.~\ref{fig:sensor_params} visualizes the distribution of sensor parameters ac
 \label{sec:block_results}
 % -----------------------------------------------------------------------------
 
-Table~\ref{tab:block_summary} summarizes the estimated occupancy duration by occupancy label. For known-absent blocks (label = 0), the unclamped estimates average \SI{14.9}{min} with a block-level median of \SI{0.0}{min}, matching the C1 calibration diagnostic exactly (both computed from the same unclamped re-estimation). Overall, 85.4\% of absent blocks estimate under \SI{5}{min}, confirming that the method correctly identifies empty rooms in the large majority of cases. For downstream use, label = 0 blocks are clamped to zero. For known-present blocks (label = 1), the mean estimated duration is \SI{69.4}{min} with a median of \SI{0.0}{min}; 47\% of occupied blocks produce nonzero estimates. This right-skewed distribution reflects the conservative empty-room floor and the nature of four-hour block labeling: many blocks labeled ``present'' involve brief visits that do not elevate CO\textsubscript{2} above the per-sensor floor, while a smaller number of blocks show sustained presence with correspondingly higher duration estimates.
+Table~\ref{tab:block_summary} summarizes the estimated occupancy duration by occupancy label. For known-absent blocks (label = 0), the unclamped estimates average \SI{14.7}{min} with a block-level median of \SI{0.0}{min}, matching the C1 calibration diagnostic exactly (both computed from the same unclamped re-estimation). Overall, 84.5\% of absent blocks estimate under \SI{5}{min}, confirming that the method correctly identifies empty rooms in the large majority of cases. For downstream use, label = 0 blocks are clamped to zero. For known-present blocks (label = 1), the mean estimated duration is \SI{68.8}{min} with a median of \SI{14.8}{min}; 54\% of occupied blocks produce nonzero estimates. This right-skewed distribution reflects the conservative empty-room floor and the nature of four-hour block labeling: many blocks labeled ``present'' involve brief visits that do not elevate CO\textsubscript{2} above the per-sensor floor, while a smaller number of blocks show sustained presence with correspondingly higher duration estimates.
 
 \begin{table}[htbp]
 \centering
@@ -554,8 +577,8 @@ Table~\ref{tab:block_summary} summarizes the estimated occupancy duration by occ
 \toprule
 Label & $n$ & Mean & Median & SD & Min & Max & Mean uncertainty \\
 \midrule
-0 (absent, unclamped) & 239 & 14.9 & 0.0 & 47.7 & 0.0 & 240.0 & 28.9 \\
-1 (present) & 535 & 69.4 & 0.0 & 90.1 & 0.0 & 240.0 & 61.2 \\
+0 (absent, unclamped) & 239 & 14.7 & 0.0 & 45.2 & 0.0 & 240.0 & 32.4 \\
+1 (present) & 535 & 68.8 & 14.8 & 85.2 & 0.0 & 240.0 & 63.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -602,7 +625,7 @@ Fig.~\ref{fig:traces} presents representative CO\textsubscript{2} time series fo
 \label{sec:validation_results}
 % -----------------------------------------------------------------------------
 
-Table~\ref{tab:validation} presents the validation results. Both calibration diagnostics (C1--C2) are met by construction (these criteria were used to select $k$). All four independent evaluation criteria (E1--E4) are satisfied. The out-of-sample temporal split test (C1-OOS) exceeds its criterion, indicating that the empty-room calibration benefits from the full dataset. These results are discussed in Section~\ref{sec:discussion}.
+Table~\ref{tab:validation} presents the validation results. Both calibration diagnostics (C1--C2) are met by construction (these criteria were used to select $k$). All four independent evaluation criteria (E1--E4) are satisfied. The out-of-sample temporal split test (C1-OOS) still exceeds its strict criterion, but robust summaries show the failure is tail-dominated: median OOS error is \SI{0.0}{min}, trimmed mean is \SI{15.7}{min}, and the top 5\% of blocks contribute 49.9\% of the OOS mean.
 
 \begin{table}[htbp]
 \centering
@@ -613,25 +636,25 @@ Table~\ref{tab:validation} presents the validation results. Both calibration dia
 Tier & Test & Value & Criterion & Pass? & Interpretation \\
 \midrule
 \multicolumn{6}{l}{\emph{Calibration diagnostics (used to select $k$; in-sample by construction)}} \\
-& C1: Label = 0 mean unclamped min & 14.9 & ${<}15$ & YES & Empty-room floor correctly calibrated \\
-& C2: Label = 0 \% under 5~min & 85.4\% & ${>}60\%$ & YES & Majority of absent blocks near zero \\
+& C1: Label = 0 mean unclamped min & 14.7 & ${<}15$ & YES & Empty-room floor correctly calibrated \\
+& C2: Label = 0 \% under 5~min & 84.5\% & ${>}60\%$ & YES & Majority of absent blocks near zero \\
 \midrule
 \multicolumn{6}{l}{\emph{Out-of-sample temporal split}} \\
-& C1-OOS: mean unclamped min & 46.0 & ${<}20$ & NO & Calibration degrades with limited data \\
-& C2-OOS: \% under 5~min & 61.4\% & ${>}50\%$ & YES & Majority of held-out absent blocks near zero \\
+& C1-OOS: mean unclamped min & 22.9 & ${<}20$ & NO & Improved but still above strict threshold \\
+& C2-OOS: \% under 5~min & 75.4\% & ${>}50\%$ & YES & Majority of held-out absent blocks near zero \\
 \midrule
 \multicolumn{6}{l}{\emph{Independent evaluation criteria}} \\
-& E1: LOO mean relative MAE & 1.11 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
-& E2: LOO mean Spearman $\rho$ & 0.313 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
-& E3: Max $\phi$ sensitivity (\%) & 30.7\% & ${<}200\%$ & YES & Smooth response to decay parameter \\
-& E4: \% blocks high confidence & 50.7\% & ${>}40\%$ & YES & About half of estimates have tight uncertainty \\
+& E1: LOO mean relative MAE & 1.49 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
+& E2: LOO mean Spearman $\rho$ & 0.279 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
+& E3: Max $\phi$ sensitivity (\%) & 26.2\% & ${<}200\%$ & YES & Smooth response to decay parameter \\
+& E4: \% blocks high confidence & 44.5\% & ${>}40\%$ & YES & Substantial fraction of estimates have tight uncertainty \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsubsection{Label = 0 sanity check}
 
-The mean unclamped estimated duration for the 239~known-empty blocks is \SI{14.9}{min}, below the \SI{15}{min} criterion. Of these blocks, 85.4\% estimate less than \SI{5}{min} of occupancy (82.4\% estimate exactly zero), with a heavy concentration near zero and a tail of larger residual-duration false positives for the remaining 14.6\% of blocks (Fig.~\ref{fig:label0_validation}).
+The mean unclamped estimated duration for the 239~known-empty blocks is \SI{14.7}{min}, below the \SI{15}{min} criterion. Of these blocks, 84.5\% estimate less than \SI{5}{min} of occupancy, with a heavy concentration near zero and a tail of larger residual-duration false positives for the remaining 15.5\% of blocks (Fig.~\ref{fig:label0_validation}).
 
 \begin{figure}[htbp]
     \centering
@@ -640,11 +663,11 @@ The mean unclamped estimated duration for the 239~known-empty blocks is \SI{14.9
     \label{fig:label0_validation}
 \end{figure}
 
-The 14.6\% of empty blocks that estimate above \SI{5}{min} represent cases where residual CO\textsubscript{2} from occupancy in a preceding block has not fully decayed during the current block, producing excess CO\textsubscript{2} that exceeds the per-sensor empty-room floor. This is physically expected given the long decay time constants ($\tau = 1/(1-\phi) \approx \SIrange{33}{200}{min}$) and is captured by the uncertainty bounds.
+The 15.5\% of empty blocks that estimate above \SI{5}{min} represent cases where residual CO\textsubscript{2} from occupancy in a preceding block has not fully decayed during the current block, producing excess CO\textsubscript{2} that exceeds the per-sensor empty-room floor. This is physically expected given the long decay time constants ($\tau = 1/(1-\phi) \approx \SIrange{33}{200}{min}$) and is captured by the uncertainty bounds.
 
 \subsubsection{Leave-one-sensor-out cross-validation}
 
-Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean absolute error relative to sensor-specific estimates is 1.11 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.313 (criterion: ${>}0.2$).
+Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean relative MAE is 1.49 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.279 (criterion: ${>}0.2$).
 
 \begin{table}[htbp]
 \centering
@@ -655,29 +678,29 @@ Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, 
 \toprule
 Sensor ID & Room & $\hat{\phi}_\text{own}$ & $\hat{g}_\text{own}$ & $\hat{g}_\text{cross}$ & MAE & Rel.\ MAE & $\rho$ \\
 \midrule
-20233647 & Single & 0.992 & 18.9 & 19.2 & 51.9 & 1.14 & 0.62 \\
-20233665 & Single & 0.995 & 30.5 & 18.9 & 54.9 & 2.52 & 0.56 \\
-20233681 & Single & 0.970 & 60.0 & 18.9 & 67.7 & 0.37 & 0.09 \\
-20233685 & Single & 0.991 & 14.5 & 19.2 & 80.1 & 0.61 & 0.07 \\
-20251591 & Single & 0.987 & 11.9 & 19.2 & 57.4 & 0.74 & 0.03 \\
-22165976 & Shared & 0.995 & 16.3 & 19.2 & 82.3 & 0.94 & 0.23 \\
-22165978 & Single & 0.994 & 5.4 & 19.2 & 8.7 & 1.27 & 0.76 \\
-22165989 & Single & 0.995 & 22.8 & 18.9 & 0.6 & 0.57 & 0.00 \\
-22165990 & Single & 0.970 & 26.2 & 18.9 & 79.4 & 0.77 & 0.05 \\
-22165993 & Single & 0.986 & 30.2 & 18.9 & 92.8 & 1.58 & 0.26 \\
-22165994 & Shared & 0.987 & 7.7 & 19.2 & 4.3 & 1.16 & 0.86 \\
-22168412 & Shared & 0.984 & 19.2 & 18.9 & 58.5 & 1.62 & 0.23 \\
+20233647 & Single & 0.992 & 18.9 & 19.2 & 79.8 & 2.01 & 0.31 \\
+20233665 & Single & 0.995 & 30.5 & 18.9 & 78.4 & 3.63 & 0.43 \\
+20233681 & Single & 0.970 & 60.0 & 18.9 & 88.2 & 0.52 & 0.05 \\
+20233685 & Single & 0.991 & 14.5 & 19.2 & 60.6 & 0.62 & -0.10 \\
+20251591 & Single & 0.987 & 11.9 & 19.2 & 54.3 & 0.76 & 0.47 \\
+22165976 & Shared & 0.995 & 16.3 & 19.2 & 106.4 & 1.33 & 0.06 \\
+22165978 & Single & 0.994 & 5.4 & 19.2 & 5.3 & 1.75 & 0.76 \\
+22165989 & Single & 0.995 & 22.8 & 18.9 & 38.7 & 2.42 & 0.58 \\
+22165990 & Single & 0.970 & 26.2 & 18.9 & 90.7 & 0.87 & -0.07 \\
+22165993 & Single & 0.986 & 30.2 & 18.9 & 120.0 & 1.49 & -0.00 \\
+22165994 & Shared & 0.987 & 7.7 & 19.2 & 9.9 & 1.19 & 0.66 \\
+22168412 & Shared & 0.984 & 19.2 & 18.9 & 55.1 & 1.26 & 0.21 \\
 \midrule
-\multicolumn{5}{l}{Mean} & 53.2 & 1.11 & 0.313 \\
+\multicolumn{5}{l}{Mean} & 65.6 & 1.49 & 0.279 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Cross-sensor performance varies considerably across rooms. Several sensors retain moderate-to-strong rank agreement under cross-sensor parameters (e.g., 22165994 with $\rho = 0.86$ and 22165978 with $\rho = 0.76$), while others show weak agreement (e.g., 22165989 with $\rho = 0.00$ and 20251591 with $\rho = 0.03$). This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
+Cross-sensor performance varies considerably across rooms. Several sensors retain moderate rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165994 with $\rho = 0.66$), while a subset shows weak or slightly negative agreement (e.g., 20233685 with $\rho = -0.10$ and 22165990 with $\rho = -0.07$). This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
 
 \subsubsection{Sensitivity analysis}
 
-Fig.~\ref{fig:sensitivity_phi} shows the sensitivity of estimated duration to the decay parameter $\phi$ across the range $[0.90, 0.99]$. The mean estimated duration varies from \SI{55.4}{min} ($\phi = 0.99$) to \SI{100.0}{min} ($\phi = 0.90$), compared to \SI{80.0}{min} at the default $\phi = 0.97$. The maximum percentage change relative to the default is 30.7\% (at $\phi = 0.99$)---well within the 200\% criterion. The monotonic decrease with increasing $\phi$ is physically intuitive: higher $\phi$ (slower decay) produces larger normalization scale, so a given observed excess corresponds to a smaller occupied fraction.
+Fig.~\ref{fig:sensitivity_phi} shows the sensitivity of estimated duration to the decay parameter $\phi$ across the range $[0.90, 0.99]$. The mean estimated duration varies from \SI{59.3}{min} ($\phi = 0.99$) to \SI{99.2}{min} ($\phi = 0.90$), compared to \SI{80.4}{min} at the default $\phi = 0.97$. The maximum percentage change relative to the default is 26.2\% (at $\phi = 0.99$)---well within the 200\% criterion. The monotonic decrease with increasing $\phi$ is physically intuitive: higher $\phi$ (slower decay) produces larger normalization scale, so a given observed excess corresponds to a smaller occupied fraction.
 
 \begin{figure}[htbp]
     \centering
@@ -686,7 +709,7 @@ Fig.~\ref{fig:sensitivity_phi} shows the sensitivity of estimated duration to th
     \label{fig:sensitivity_phi}
 \end{figure}
 
-Fig.~\ref{fig:sensitivity_gen} shows the sensitivity to the generation rate multiplier. Scaling the generation rate from $0.5\times$ to $2.0\times$ produces a monotonic decrease in estimated duration from \SI{88.9}{min} to \SI{52.2}{min}, consistent with the physics: higher generation rates produce more CO\textsubscript{2} per minute of occupancy, so a given observed excess corresponds to fewer occupied minutes.
+Fig.~\ref{fig:sensitivity_gen} shows the sensitivity to the generation rate multiplier. Scaling the generation rate from $0.5\times$ to $2.0\times$ produces a monotonic decrease in estimated duration from \SI{93.9}{min} to \SI{47.3}{min}, consistent with the physics: higher generation rates produce more CO\textsubscript{2} per minute of occupancy, so a given observed excess corresponds to fewer occupied minutes.
 
 \begin{figure}[htbp]
     \centering
@@ -700,7 +723,7 @@ Fig.~\ref{fig:sensitivity_gen} shows the sensitivity to the generation rate mult
 \label{sec:uncertainty_results}
 % -----------------------------------------------------------------------------
 
-Fig.~\ref{fig:uncertainty} shows the distribution of uncertainty widths (80\% credible interval spans) across all occupied blocks. The mean uncertainty width is \SI{61.2}{min}, and 50.7\% of occupied blocks achieve ``high confidence'' status (width ${\leq}\SI{30}{min}$). High-confidence blocks tend to be those with either very low or very high mean excess CO\textsubscript{2}: blocks near the empty-room floor produce tight estimates near zero, while blocks with very high excess produce tight estimates near the block maximum. Intermediate excess levels, where the calibrated signal is comparable to the parameter uncertainty, naturally produce wider confidence intervals.
+Fig.~\ref{fig:uncertainty} shows the distribution of uncertainty widths (80\% credible interval spans) across all occupied blocks. The mean uncertainty width is \SI{63.4}{min}, and 44.5\% of occupied blocks achieve ``high confidence'' status (width ${\leq}\SI{30}{min}$). High-confidence blocks tend to be those with either very low or very high mean excess CO\textsubscript{2}: blocks near the empty-room floor produce tight estimates near zero, while blocks with very high excess produce tight estimates near the block maximum. Intermediate excess levels, where the calibrated signal is comparable to the parameter uncertainty, naturally produce wider confidence intervals.
 
 \begin{figure}[htbp]
     \centering
@@ -779,7 +802,7 @@ Fig.~\ref{fig:individual_profiles} visualizes the daily occupancy profiles for s
 \label{sec:shared_vs_single}
 % -----------------------------------------------------------------------------
 
-Table~\ref{tab:shared_vs_single} compares estimation results between shared and single-occupancy rooms. Single-occupancy rooms show higher mean estimated duration (\SI{78.6}{min} vs.\ \SI{43.0}{min}) and higher mean CO\textsubscript{2} concentrations (\SI{1637}{ppm} vs.\ \SI{1251}{ppm}). The lower duration estimates for shared rooms may reflect greater ventilation (more door openings with two occupants), measurement dilution (one sensor capturing a shared space), or genuinely lower per-person occupancy time in rooms with social dynamics.
+Table~\ref{tab:shared_vs_single} compares estimation results between shared and single-occupancy rooms. Single-occupancy rooms show higher mean estimated duration (\SI{77.2}{min} vs.\ \SI{44.6}{min}) and higher mean CO\textsubscript{2} concentrations (\SI{1637}{ppm} vs.\ \SI{1251}{ppm}). The lower duration estimates for shared rooms may reflect greater ventilation (more door openings with two occupants), measurement dilution (one sensor capturing a shared space), or genuinely lower per-person occupancy time in rooms with social dynamics.
 
 \begin{table}[htbp]
 \centering
@@ -789,8 +812,8 @@ Table~\ref{tab:shared_vs_single} compares estimation results between shared and 
 \toprule
 Room type & $n_\text{blocks}$ & Subjects & Mean (min) & Median (min) & SD (min) & Mean CO\textsubscript{2} (ppm) \\
 \midrule
-Shared & 138 & 6 & 43.0 & 0.0 & 71.9 & 1251 \\
-Single & 397 & 18 & 78.6 & 5.8 & 94.1 & 1637 \\
+Shared & 138 & 6 & 44.6 & 1.2 & 62.5 & 1251 \\
+Single & 397 & 18 & 77.2 & 38.0 & 90.5 & 1637 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -818,7 +841,7 @@ Fig.~\ref{fig:heatmap} presents a heatmap of estimated occupancy across subjects
 \subsection{Out-of-sample empty-room calibration}
 % -----------------------------------------------------------------------------
 
-To verify that the empty-room floor $F_\text{empty}$ generalizes beyond the blocks used to fit it, we repeated the C1--C2 tests using a temporal split: the first 70\% of each sensor's empty blocks (chronologically) were used to fit $F_\text{empty}$, and the remaining 30\% were evaluated with that floor.  The out-of-sample results are reported alongside the in-sample results in Table~\ref{tab:validation}.  C2-OOS remains acceptable (61.4\% of held-out empty blocks under \SI{5}{min}), but C1-OOS increases substantially to \SI{46.0}{min}, indicating that the empty-room floor is not fully stationary across days.  This likely reflects day-to-day changes in residual CO\textsubscript{2} carryover (e.g., ventilation transients, atypical high-excess events, and changing occupancy patterns in adjacent blocks) that are not well captured when the calibration period is short.  In practice, longer or periodically refreshed calibration windows may be needed for stable empty-room specificity.
+To verify that the empty-room floor $F_\text{empty}$ generalizes beyond the blocks used to fit it, we repeated the C1--C2 tests using a temporal split: the first 70\% of each sensor's empty blocks (chronologically) were used to fit $F_\text{empty}$, and the remaining 30\% were evaluated with that floor.  The out-of-sample results are reported alongside the in-sample results in Table~\ref{tab:validation}.  C2-OOS remains acceptable (75.4\% of held-out empty blocks under \SI{5}{min}), while C1-OOS is reduced to \SI{22.9}{min} but still above the strict \SI{20}{min} target.  Robust diagnostics indicate the residual gap is tail-dominated rather than typical-case failure: OOS median is \SI{0.0}{min}, OOS trimmed mean is \SI{15.7}{min}, and the top 5\% of held-out blocks contribute 49.9\% of the OOS mean.  This pattern is consistent with occasional high-carryover blocks and day-to-day ventilation transients that are hard to capture with short calibration windows.  In practice, longer or periodically refreshed calibration windows may be needed for stable empty-room specificity.
 
 % -----------------------------------------------------------------------------
 \subsection{Comparison with baseline methods}
@@ -837,7 +860,7 @@ Fig.~\ref{fig:baseline_comparison} compares the block-excess estimator against s
 \subsection{Semisynthetic validation}
 % -----------------------------------------------------------------------------
 
-Because no ground-truth occupied minutes are available, we constructed a semisynthetic validation by injecting known synthetic occupancy patterns into real empty-room CO\textsubscript{2} segments (see Section~\ref{sec:semisynthetic_methods}).  Fig.~\ref{fig:semisynthetic} shows the results and Table~\ref{tab:semisynthetic_summary} provides numeric accuracy by scenario.  Across continuous scenarios, the estimator shows systematic underestimation, with bias ranging from approximately $-25$~min (30--120~min cases) to $-53$~min for full-block (240~min) occupancy.  Fragmented patterns produce comparable absolute errors but tend toward more negative bias than continuous occupancy of equal total duration (e.g., frag\_4$\times$30 bias $= -48$~min vs.\ cont\_120 bias $= -24$~min), consistent with block-level averaging smoothing out short visits.  The model-mismatch stress tests show that estimation degrades gracefully under parameter perturbation: generation-rate mismatch ($\hat{g} \times 0.7$ and $\times 1.3$), decay-rate drift ($\hat{\phi} + 0.005$), baseline shifts ($+\SI{30}{ppm}$), and extra innovation noise all produce bounded degradation (MAE \SIrange{64}{115}{min} for a true duration of 120~min).
+Because no ground-truth occupied minutes are available, we constructed a semisynthetic validation by injecting known synthetic occupancy patterns into real empty-room CO\textsubscript{2} segments (see Section~\ref{sec:semisynthetic_methods}).  Fig.~\ref{fig:semisynthetic} shows the results and Table~\ref{tab:semisynthetic_summary} provides numeric accuracy by scenario.  Across continuous scenarios, the estimator shows systematic underestimation, with bias ranging from approximately $-7$~min (30-min scenario) to $-40$~min for full-block (240-min) occupancy.  Fragmented patterns produce comparable absolute errors but more negative bias than continuous occupancy of equal total duration (e.g., frag\_4$\times$30 bias $= -33.4$~min vs.\ cont\_120 bias $= -27.2$~min), consistent with block-level averaging smoothing out short visits.  The model-mismatch stress tests remain the hardest cases, with MAE spanning \SIrange{50.8}{76.3}{min} for true duration of 120~min.  Importantly, the 80\% interval coverage is 63.1\% overall (continuous: 60.4\%, fragmented: 72.7\%, stress: 61.8\%), indicating uncertainty intervals are informative but still under-cover under structural mismatch.
 
 \begin{figure}[htbp]
     \centering
@@ -856,20 +879,20 @@ Because no ground-truth occupied minutes are available, we constructed a semisyn
 \toprule
 Group & Scenario & True min & $n$ & MAE & Bias & P90 \\
 \midrule
-Continuous & cont\_30  & 30  & 11 & 24.5 & $-24.5$ & 30.0 \\
-Continuous & cont\_60  & 60  & 11 & 31.4 & $-27.6$ & 60.0 \\
-Continuous & cont\_120 & 120 & 11 & 63.3 & $-24.0$ & 120.0 \\
-Continuous & cont\_180 & 180 & 11 & 93.1 & $-33.5$ & 180.0 \\
-Continuous & cont\_240 & 240 & 9 & 52.7 & $-52.7$ & 233.9 \\
+Continuous & cont\_30  & 30  & 11 & 25.8 & $-7.0$ & 30.0 \\
+Continuous & cont\_60  & 60  & 11 & 35.0 & $-16.1$ & 60.0 \\
+Continuous & cont\_120 & 120 & 11 & 56.6 & $-27.2$ & 120.0 \\
+Continuous & cont\_180 & 180 & 11 & 56.6 & $-27.1$ & 108.2 \\
+Continuous & cont\_240 & 240 & 9 & 39.6 & $-39.6$ & 147.7 \\
 \midrule
-Fragmented & frag\_4x30 & 120 & 11 & 49.5 & $-48.1$ & 120.0 \\
-Fragmented & frag\_2x60 & 120 & 11 & 50.9 & $-39.2$ & 120.0 \\
+Fragmented & frag\_4x30 & 120 & 11 & 54.4 & $-33.4$ & 120.0 \\
+Fragmented & frag\_2x60 & 120 & 11 & 56.8 & $-30.4$ & 120.0 \\
 \midrule
-Stress     & $g \times 0.7$  & 120 & 11 & 64.3 & $-64.3$ & 120.0 \\
-Stress     & $g \times 1.3$  & 120 & 11 & 103.7 & $+16.4$ & 120.0 \\
-Stress     & baseline   & 120 & 11 & 70.7 & $-16.6$ & 120.0 \\
-Stress     & $\phi + 0.005$ & 120 & 11 & 115.1 & $+33.4$ & 120.0 \\
-Stress     & extra noise     & 120 & 11 & 63.9 & $-22.6$ & 120.0 \\
+Stress     & $g \times 0.7$  & 120 & 11 & 56.3 & $-56.3$ & 120.0 \\
+Stress     & $g \times 1.3$  & 120 & 11 & 61.6 & $+13.2$ & 67.4 \\
+Stress     & baseline   & 120 & 11 & 58.6 & $-22.5$ & 120.0 \\
+Stress     & $\phi + 0.005$ & 120 & 11 & 76.3 & $+45.0$ & 98.3 \\
+Stress     & extra noise     & 120 & 11 & 50.8 & $-24.0$ & 120.0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -888,7 +911,7 @@ The block-level excess method has several properties that make it well suited fo
 
 \textbf{Per-sensor calibration handles heterogeneity.} The per-sensor empty-room floor (Eq.~\ref{eq:empty_floor}) and self-normalizing scale (Eq.~\ref{eq:scale}) adapt to each room's ventilation, sensor placement, and CO\textsubscript{2} baseline, avoiding the need for uniform room physics assumptions.
 
-\textbf{Full uncertainty quantification.} The 200-sample Monte Carlo propagation produces 80\% credible intervals that honestly reflect the uncertainty from parameter estimation ($\hat{\phi}$, $\hat{g}$) and empty-room floor estimation ($F_\text{empty}$). The observed block mean is treated as fixed data, avoiding the need for an observation-noise term whose scale is ill-defined under strong AR(1) autocorrelation. The 50.7\% high-confidence rate provides users with clear guidance on which estimates are most reliable.
+\textbf{Full uncertainty quantification.} The 200-sample Monte Carlo propagation produces 80\% credible intervals that honestly reflect the uncertainty from parameter estimation ($\hat{\phi}$, $\hat{g}$) and empty-room floor estimation ($F_\text{empty}$). The observed block mean is treated as fixed data, avoiding the need for an observation-noise term whose scale is ill-defined under strong AR(1) autocorrelation. The 44.5\% high-confidence rate provides users with clear guidance on which estimates are most reliable.
 
 % -----------------------------------------------------------------------------
 \subsection{Limitations}

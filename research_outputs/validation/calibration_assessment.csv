@@ -1,9 +1,9 @@
 metric,value
 n_blocks_label0,239.0
 n_blocks_label1,535.0
-label1_mean_uncertainty_width,61.179101698763525
-label1_median_uncertainty_width,22.92328072924157
-pct_high_confidence,50.654205607476634
-pct_medium_confidence,5.233644859813085
-pct_low_confidence,44.11214953271028
-corr_width_vs_data_minutes,0.1554596494153798
+label1_mean_uncertainty_width,63.400411151465825
+label1_median_uncertainty_width,43.44017380281963
+pct_high_confidence,44.48598130841121
+pct_medium_confidence,9.906542056074766
+pct_low_confidence,45.60747663551402
+corr_width_vs_data_minutes,0.17735922377090457

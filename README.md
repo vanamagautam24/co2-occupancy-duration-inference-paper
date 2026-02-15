@@ -66,14 +66,27 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 
 | Metric | Value | Criterion | Pass |
 |---|---:|---:|:---:|
-| C1 in-sample mean unclamped (label=0) | 14.85 min | < 15 | YES |
-| C2 in-sample % under 5 min | 85.4% | > 60% | YES |
-| C1-OOS mean unclamped (label=0) | 46.05 min | < 20 | NO |
-| C2-OOS % under 5 min | 61.4% | > 50% | YES |
-| E1 LOO mean relative MAE | 1.11 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.313 | > 0.2 | YES |
-| E3 max phi sensitivity change | 30.7% | < 200% | YES |
-| E4 high-confidence blocks | 50.7% | > 40% | YES |
+| C1 in-sample mean unclamped (label=0) | 14.71 min | < 15 | YES |
+| C2 in-sample % under 5 min | 84.5% | > 60% | YES |
+| C1-OOS mean unclamped (label=0) | 22.94 min | < 20 | NO |
+| C2-OOS % under 5 min | 75.4% | > 50% | YES |
+| C1-OOS median unclamped | 0.00 min | report | NA |
+| C1-OOS 5% trimmed mean | 15.71 min | report | NA |
+| C1-OOS tail contribution (top 5%) | 49.9% | report | NA |
+| E1 LOO mean relative MAE | 1.49 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.279 | > 0.2 | YES |
+| E3 max phi sensitivity change | 26.2% | < 200% | YES |
+| E4 high-confidence blocks | 44.5% | > 40% | YES |
+
+## Semisynthetic CI Coverage (Latest Run)
+Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
+
+| Group | Coverage (80% CI) | Mean CI Width | MAE |
+|---|---:|---:|---:|
+| Continuous | 60.4% | 73.8 min | 42.8 min |
+| Fragmented | 72.7% | 89.7 min | 55.6 min |
+| Stress | 61.8% | 109.5 min | 60.7 min |
+| Overall | 63.1% | 91.6 min | 52.6 min |
 
 ## Baseline Comparator Note
 Source: `research_outputs/tables/table07_baseline_comparators.csv`
@@ -82,7 +95,7 @@ Baseline comparison is computed on a comparable room-level subset (`n_label0=177
 
 ## Reproducing
 ```bash
-python research_pipeline/run_full_pipeline.py
+.venv/bin/python research_pipeline/run_full_pipeline.py
 ```
 
 Main generated artifacts:
