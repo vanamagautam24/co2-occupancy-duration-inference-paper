@@ -57,10 +57,6 @@ This GIF explains the full workflow from data to final results in plain steps.
 
 ![End to End Pipeline](assets/gifs/end_to_end_pipeline.gif)
 
-## Additional Result Previews
-- Validation + Baselines: `assets/gifs/validation_and_baselines.gif`
-- Distribution / Uncertainty / Semisynthetic: `assets/gifs/results_overview.gif`
-
 ## Key Results Snapshot (Latest Run)
 Source: `research_outputs/tables/table04_validation_metrics.csv`
 
