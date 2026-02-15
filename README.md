@@ -21,7 +21,7 @@ flowchart TD
     B --> C[Block Feature Construction]
     C --> D[Empty-Floor Calibration]
     D --> E[Block Minutes Estimation]
-    E --> F[Monte Carlo Uncertainty]
+    E --> F[Monte Carlo Uncertainty<br/>Parameter + Structural Mismatch Priors]
     F --> G[Validation + Sensitivity + Baseline Comparators]
     G --> H[Tables / Figures / Paper Outputs]
 ```
@@ -33,6 +33,7 @@ flowchart LR
     OOS --> E1[E1/E2 Cross-Sensor Generalization]
     E1 --> E2[E3 Parameter Sensitivity]
     E2 --> E3[E4 Uncertainty Informativeness]
+    E3 --> S1[Semisynthetic Coverage by Scenario]
 ```
 
 ## Repository Layout
@@ -69,10 +70,10 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 | C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
 | C1-OOS 5% trimmed mean | 12.08 min | descriptive | N/A (descriptive) |
 | C1-OOS tail contribution (top 5%) | 53.3% | descriptive | N/A (descriptive) |
-| E1 LOO mean relative MAE | 1.48 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.307 | > 0.2 | YES |
-| E3 max phi sensitivity change | 76.5% | < 200% | YES |
-| E4 high-confidence blocks | 49.5% | > 40% | YES |
+| E1 LOO mean relative MAE | 1.42 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.293 | > 0.2 | YES |
+| E3 max phi sensitivity change | 75.7% | < 200% | YES |
+| E4 high-confidence blocks | 47.1% | > 40% | YES |
 
 `N/A (descriptive)` means the metric is reported for interpretation (robustness/tail behavior), not used as a pass/fail criterion.
 
@@ -81,10 +82,10 @@ Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
 
 | Group | Coverage (80% CI) | Mean CI Width | MAE |
 |---|---:|---:|---:|
-| Continuous | 56.8% | 57.3 min | 44.5 min |
-| Fragmented | 51.9% | 83.4 min | 54.9 min |
-| Stress | 53.1% | 75.4 min | 45.3 min |
-| Overall | 54.4% | 69.4 min | 46.6 min |
+| Continuous | 63.2% | 68.2 min | 44.5 min |
+| Fragmented | 67.3% | 91.4 min | 54.9 min |
+| Stress | 60.8% | 91.7 min | 44.6 min |
+| Overall | 62.9% | 82.1 min | 46.3 min |
 
 ## Baseline Comparator Note
 Source: `research_outputs/tables/table07_baseline_comparators.csv`

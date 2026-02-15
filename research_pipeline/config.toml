@@ -66,3 +66,23 @@ figure_dpi = 300
 figure_format = "pdf"
 sensitivity_phi_values = [0.90, 0.92, 0.94, 0.96, 0.97, 0.98, 0.99]
 sensitivity_gen_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+
+# Structural mismatch uncertainty (for Monte Carlo credible intervals)
+# These terms widen intervals to reflect real physical mismatch beyond
+# pure parameter-estimation error.
+mc_include_structural_mismatch = true
+
+# Multiplicative random effect on generation rate (lognormal std in log-space)
+# Approx. +/-15% typical variation in metabolic generation.
+mc_structural_sigma_g_log = 0.15
+
+# Additive random effect on phi per draw (unitless, clipped to [phi_min, phi_max])
+# Captures short-term ventilation drift and regime changes.
+mc_structural_sigma_phi = 0.002
+
+# Additive random effect on baseline excess (ppm) per draw.
+# Represents baseline drift/outdoor fluctuations not captured by fixed baseline.
+mc_structural_sigma_baseline_ppm = 10.0
+
+# Multiplicative random effect on innovation noise scale (lognormal std in log-space).
+mc_structural_sigma_noise_log = 0.10

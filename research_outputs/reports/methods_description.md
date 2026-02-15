@@ -48,8 +48,11 @@ where innovation(t) = excess(t) - phi * excess(t-1). The estimated occupied minu
 
 Parameter uncertainty was propagated via Monte Carlo simulation (N=200).
 For each simulation, phi and g were drawn from normal distributions centered on their
-point estimates with standard errors derived from the fitting residuals. Block-level estimates
-were summarized as posterior median (p50) with 80% credible intervals (p10, p90).
+point estimates with standard errors derived from the fitting residuals. In addition, structural
+mismatch terms were sampled (enabled):
+generation-rate multiplier, additive phi drift, baseline-excess shift, and innovation-noise
+scale inflation. Block-level estimates were summarized as posterior median (p50) with 80%
+credible intervals (p10, p90).
 
 ## CO2 Smoothing
 

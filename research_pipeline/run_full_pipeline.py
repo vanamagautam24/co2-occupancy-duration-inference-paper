@@ -69,6 +69,11 @@ class Config:
     figure_format: str
     sensitivity_phi_values: list[float]
     sensitivity_gen_multipliers: list[float]
+    mc_include_structural_mismatch: bool
+    mc_structural_sigma_g_log: float
+    mc_structural_sigma_phi: float
+    mc_structural_sigma_baseline_ppm: float
+    mc_structural_sigma_noise_log: float
 
 
 def load_config(path: Path) -> Config:
@@ -115,6 +120,11 @@ def load_config(path: Path) -> Config:
         figure_format=r["figure_format"],
         sensitivity_phi_values=r["sensitivity_phi_values"],
         sensitivity_gen_multipliers=r["sensitivity_gen_multipliers"],
+        mc_include_structural_mismatch=r.get("mc_include_structural_mismatch", False),
+        mc_structural_sigma_g_log=r.get("mc_structural_sigma_g_log", 0.0),
+        mc_structural_sigma_phi=r.get("mc_structural_sigma_phi", 0.0),
+        mc_structural_sigma_baseline_ppm=r.get("mc_structural_sigma_baseline_ppm", 0.0),
+        mc_structural_sigma_noise_log=r.get("mc_structural_sigma_noise_log", 0.0),
     )
 
 
@@ -437,6 +447,29 @@ def _carryover_mean(
     if np.isscalar(pre_excess):
         return float(carry)
     return carry
+
+
+def _sample_structural_draw(cfg: Config, rng: np.random.Generator) -> tuple[float, float, float, float]:
+    """Sample structural-mismatch perturbations for one MC draw.
+
+    Returns:
+        g_mult: multiplicative effect on generation rate.
+        phi_delta: additive effect on phi.
+        baseline_shift: additive excess shift (ppm).
+        sigma_mult: multiplicative effect on innovation noise scale.
+    """
+    if not cfg.mc_include_structural_mismatch:
+        return 1.0, 0.0, 0.0, 1.0
+
+    g_mult = float(np.exp(rng.normal(0.0, max(cfg.mc_structural_sigma_g_log, 0.0))))
+    sigma_mult = float(np.exp(rng.normal(0.0, max(cfg.mc_structural_sigma_noise_log, 0.0))))
+    phi_delta = float(rng.normal(0.0, max(cfg.mc_structural_sigma_phi, 0.0)))
+    baseline_shift = float(rng.normal(0.0, max(cfg.mc_structural_sigma_baseline_ppm, 0.0)))
+
+    # Conservative clipping prevents a few pathological draws from dominating CI width.
+    g_mult = float(np.clip(g_mult, 0.5, 2.0))
+    sigma_mult = float(np.clip(sigma_mult, 0.5, 2.5))
+    return g_mult, phi_delta, baseline_shift, sigma_mult
 
 
 def _trimmed_mean(arr: np.ndarray, trim_fraction: float = TRIM_FRACTION) -> float:
@@ -1066,12 +1099,14 @@ def estimate_block_minutes_mc(
 
     for s in range(cfg.n_mc_samples):
         # Sample parameters
+        g_mult_s, phi_delta_s, baseline_shift_s, sigma_mult_s = _sample_structural_draw(cfg, rng)
         phi_s = float(np.clip(
-            rng.normal(fit.phi_hat, fit.phi_se), cfg.phi_min, cfg.phi_max
+            rng.normal(fit.phi_hat + phi_delta_s, fit.phi_se), cfg.phi_min, cfg.phi_max
         ))
         g_s = float(np.clip(
-            rng.normal(fit.g_hat, fit.g_se), cfg.generation_min, cfg.generation_max
+            rng.normal(fit.g_hat * g_mult_s, fit.g_se), cfg.generation_min, cfg.generation_max
         ))
+        sigma_s = float(max(fit.sigma_noise * sigma_mult_s, 1.0))
 
         floor_s = np.maximum(0.0, rng.normal(floor_center_arr, floor_sd_arr * 0.5))
 
@@ -1090,7 +1125,7 @@ def estimate_block_minutes_mc(
         mean_excess_adj_s = np.maximum(mean_excess_raw_arr - carry_s, 0.0)
         # Keep sampled adjusted means anchored to observed adjusted values.
         mean_excess_adj_s = 0.5 * mean_excess_adj_s + 0.5 * mean_excess_adj_arr
-        cal_excess = np.maximum(mean_excess_adj_s - floor_s, 0.0)
+        cal_excess = np.maximum((mean_excess_adj_s + baseline_shift_s) - floor_s, 0.0)
 
         occ_frac = np.clip(cal_excess / max(excess_ss_s, 1.0), 0.0, 1.0)
         minutes = occ_frac * block_duration
@@ -1101,7 +1136,7 @@ def estimate_block_minutes_mc(
             innovation_sum_s,
             n_innov_pairs_arr,
             g_s,
-            fit.sigma_noise,
+            sigma_s,
         )
 
         if clamp_absent:
@@ -2686,14 +2721,24 @@ def run_semisynthetic_validation(
 
         mc = np.zeros(cfg.n_mc_samples, dtype=np.float64)
         for s in range(cfg.n_mc_samples):
-            phi_s = float(np.clip(rng.normal(fit_obj.phi_hat, fit_obj.phi_se), cfg.phi_min, cfg.phi_max))
-            g_s = float(np.clip(rng.normal(fit_obj.g_hat, fit_obj.g_se), cfg.generation_min, cfg.generation_max))
+            g_mult_s, phi_delta_s, baseline_shift_s, sigma_mult_s = _sample_structural_draw(cfg, rng)
+            phi_s = float(np.clip(
+                rng.normal(fit_obj.phi_hat + phi_delta_s, fit_obj.phi_se),
+                cfg.phi_min,
+                cfg.phi_max,
+            ))
+            g_s = float(np.clip(
+                rng.normal(fit_obj.g_hat * g_mult_s, fit_obj.g_se),
+                cfg.generation_min,
+                cfg.generation_max,
+            ))
+            sigma_s = float(max(fit_obj.sigma_noise * sigma_mult_s, 1.0))
             floor_s = max(0.0, rng.normal(floor_center, floor_sd * 0.5))
 
             phi_carry_s = float(np.clip(phi_s + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
             carry_mean_s = _carryover_mean(start_anchor, phi_carry_s, 0.0, float(n_local))
             mean_excess_adj_s = max(float(np.mean(excess_series)) - float(carry_mean_s), 0.0)
-            cal_excess_s = max(mean_excess_adj_s - floor_s, 0.0)
+            cal_excess_s = max((mean_excess_adj_s + baseline_shift_s) - floor_s, 0.0)
 
             one_minus_phi_s = max(1.0 - phi_s, 1e-6)
             fwf_s = _finite_window_factor(phi_s, block_duration)
@@ -2708,7 +2753,7 @@ def run_semisynthetic_validation(
             innov_sum_s = curr_sum - phi_innov_s * prev_sum if n_local > 1 else 0.0
             min_s = float(_apply_innovation_gate_and_cap(
                 np.array([min_s]), np.array([innov_sum_s]), np.array([n_pairs]),
-                g_s, fit_obj.sigma_noise
+                g_s, sigma_s
             )[0])
             mc[s] = min_s
 
@@ -4226,8 +4271,11 @@ where innovation(t) = excess(t) - phi * excess(t-1). The estimated occupied minu
 
 Parameter uncertainty was propagated via Monte Carlo simulation (N={cfg.n_mc_samples}).
 For each simulation, phi and g were drawn from normal distributions centered on their
-point estimates with standard errors derived from the fitting residuals. Block-level estimates
-were summarized as posterior median (p50) with 80% credible intervals (p10, p90).
+point estimates with standard errors derived from the fitting residuals. In addition, structural
+mismatch terms were sampled ({'enabled' if cfg.mc_include_structural_mismatch else 'disabled'}):
+generation-rate multiplier, additive phi drift, baseline-excess shift, and innovation-noise
+scale inflation. Block-level estimates were summarized as posterior median (p50) with 80%
+credible intervals (p10, p90).
 
 ## CO2 Smoothing
 
