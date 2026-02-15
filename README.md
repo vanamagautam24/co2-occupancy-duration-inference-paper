@@ -29,7 +29,7 @@ flowchart TD
 ## Validation Framework
 ```mermaid
 flowchart LR
-    C1[C1/C2 Calibration Diagnostics\n(in-sample)] --> OOS[C1-OOS/C2-OOS Temporal Split]
+    C1["C1 & C2 Calibration Diagnostics (in-sample)"] --> OOS["C1-OOS & C2-OOS Temporal Split"]
     OOS --> E1[E1/E2 Cross-Sensor Generalization]
     E1 --> E2[E3 Parameter Sensitivity]
     E2 --> E3[E4 Uncertainty Informativeness]
@@ -52,13 +52,14 @@ graph TD
     RO --> ROE[estimator]
 ```
 
-## Animated Result Previews
+## End-to-End GIF (Simple Storyboard)
+This GIF explains the full workflow from data to final results in plain steps.
 
-### Validation + Baselines
-![Validation and Baselines](assets/gifs/validation_and_baselines.gif)
+![End to End Pipeline](assets/gifs/end_to_end_pipeline.gif)
 
-### Distribution / Uncertainty / Semisynthetic
-![Results Overview](assets/gifs/results_overview.gif)
+## Additional Result Previews
+- Validation + Baselines: `assets/gifs/validation_and_baselines.gif`
+- Distribution / Uncertainty / Semisynthetic: `assets/gifs/results_overview.gif`
 
 ## Key Results Snapshot (Latest Run)
 Source: `research_outputs/tables/table04_validation_metrics.csv`
@@ -89,4 +90,3 @@ Main generated artifacts:
 - Baseline comparison: `research_outputs/tables/table07_baseline_comparators.csv`
 - Semisynthetic summary: `research_outputs/tables/table09_semisynthetic_summary.csv`
 - Paper: `research_outputs/paper/main.pdf`
-
