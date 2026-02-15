@@ -1,115 +1,123 @@
-[12:38:33] ======================================================================
-[12:38:33] CO2 Occupancy Duration Inference - Research Pipeline
-[12:38:33] ======================================================================
-[12:38:33] 
+[14:18:06] ======================================================================
+[14:18:06] CO2 Occupancy Duration Inference - Research Pipeline
+[14:18:06] ======================================================================
+[14:18:06] 
 [PHASE 1/6] Loading and preparing data...
-[12:38:33] Loading CO2 files...
-[12:38:33]   Found 138 CO2 CSV files
-[12:38:35]   1,398,359 minute-level rows, 78 sensors
-[12:38:35] Loading occupancy labels...
-[12:38:36]   130,464 label rows, 183 subjects
-[12:38:36] Loading crosswalk...
-[12:38:36]   26 crosswalk rows
-[12:38:36] Loading building key...
-[12:38:36]   309 deployment rows
-[12:38:36] Mapping occupancy to sensors...
-[12:38:36]   791 mapped block rows, 24 subjects, 12 sensors
-[12:38:36] Expanding blocks to minute level...
-[12:38:36]   189,840 minute-level occupancy rows
-[12:38:36]   Phase 1 complete (2s)
-[12:38:36] 
+[14:18:06] Loading CO2 files...
+[14:18:06]   Found 138 CO2 CSV files
+[14:18:08]   1,398,359 minute-level rows, 78 sensors
+[14:18:08] Loading occupancy labels...
+[14:18:08]   130,464 label rows, 183 subjects
+[14:18:08] Loading crosswalk...
+[14:18:08]   26 crosswalk rows
+[14:18:08] Loading building key...
+[14:18:08]   309 deployment rows
+[14:18:08] Mapping occupancy to sensors...
+[14:18:08]   791 mapped block rows, 24 subjects, 12 sensors
+[14:18:08] Expanding blocks to minute level...
+[14:18:08]   189,840 minute-level occupancy rows
+[14:18:08]   Phase 1 complete (2s)
+[14:18:08] 
 [PHASE 2/6] Running physics estimation with Monte Carlo uncertainty...
-[12:38:36]   Fitting physics for 12 sensors...
-[12:38:36]     Sensor 20233647: phi=0.9919, g=18.9, baseline=444, n_decay=693, n_occ=7182, room=single
-[12:38:36]     Sensor 20233665: phi=0.9950, g=30.5, baseline=481, n_decay=1658, n_occ=5033, room=single
-[12:38:36]     Sensor 20233681: phi=0.9700, g=60.0, baseline=409, n_decay=0, n_occ=10079, room=single, fallback=[phi=fallback]
-[12:38:36]     Sensor 20233685: phi=0.9914, g=14.5, baseline=457, n_decay=2081, n_occ=5759, room=single
-[12:38:36]     Sensor 20251591: phi=0.9873, g=11.9, baseline=406, n_decay=1897, n_occ=3152, room=single
-[12:38:37]     Sensor 22165976: phi=0.9950, g=16.3, baseline=406, n_decay=2880, n_occ=4559, room=shared
-[12:38:37]     Sensor 22165978: phi=0.9942, g=5.4, baseline=477, n_decay=2974, n_occ=960, room=single
-[12:38:37]     Sensor 22165989: phi=0.9950, g=22.8, baseline=419, n_decay=1200, n_occ=2639, room=single
-[12:38:37]     Sensor 22165990: phi=0.9697, g=26.2, baseline=413, n_decay=50, n_occ=5946, room=single
-[12:38:37]     Sensor 22165993: phi=0.9865, g=30.2, baseline=476, n_decay=240, n_occ=7888, room=single
-[12:38:37]     Sensor 22165994: phi=0.9870, g=7.7, baseline=407, n_decay=353, n_occ=3022, room=shared
-[12:38:37]     Sensor 22168412: phi=0.9843, g=19.2, baseline=542, n_decay=240, n_occ=4799, room=shared
-[12:38:37]   Label=1 mean estimated minutes: 68.8
-[12:38:37]   Label=1 median estimated minutes: 14.8
-[12:38:37]   Phase 2 complete (2s)
-[12:38:37] 
+[14:18:09]   Fitting physics for 12 sensors...
+[14:18:09]     Sensor 20233647: phi=0.9919, g=18.9, baseline=444, n_decay=693, n_occ=7182, room=single
+[14:18:09]     Sensor 20233665: phi=0.9950, g=30.5, baseline=481, n_decay=1658, n_occ=5033, room=single
+[14:18:09]     Sensor 20233681: phi=0.9700, g=60.0, baseline=409, n_decay=0, n_occ=10079, room=single, fallback=[phi=fallback]
+[14:18:09]     Sensor 20233685: phi=0.9914, g=14.5, baseline=457, n_decay=2081, n_occ=5759, room=single
+[14:18:09]     Sensor 20251591: phi=0.9873, g=11.9, baseline=406, n_decay=1897, n_occ=3152, room=single
+[14:18:09]     Sensor 22165976: phi=0.9950, g=16.3, baseline=406, n_decay=2880, n_occ=4559, room=shared
+[14:18:09]     Sensor 22165978: phi=0.9942, g=5.4, baseline=477, n_decay=2974, n_occ=960, room=single
+[14:18:10]     Sensor 22165989: phi=0.9950, g=22.8, baseline=419, n_decay=1200, n_occ=2639, room=single
+[14:18:10]     Sensor 22165990: phi=0.9697, g=26.2, baseline=413, n_decay=50, n_occ=5946, room=single
+[14:18:10]     Sensor 22165993: phi=0.9865, g=30.2, baseline=476, n_decay=240, n_occ=7888, room=single
+[14:18:10]     Sensor 22165994: phi=0.9870, g=7.7, baseline=407, n_decay=353, n_occ=3022, room=shared
+[14:18:10]     Sensor 22168412: phi=0.9843, g=19.2, baseline=542, n_decay=240, n_occ=4799, room=shared
+[14:18:10]   Label=1 mean estimated minutes: 37.1
+[14:18:10]   Label=1 median estimated minutes: 0.0
+[14:18:10]   Phase 2 complete (2s)
+[14:18:10] 
 [PHASE 3/6] Running validation analyses...
-[12:38:37]   Validation 1: Label=0 sanity check (unclamped estimates)...
-[12:38:38]     Mean unclamped estimate for absent blocks: 14.71 min
-[12:38:38]     84.5% of absent blocks estimate < 5 min
-[12:38:38]   Validation 2: Leave-one-sensor-out cross-validation...
-[12:38:40]     Mean MAE (own vs cross-sensor params): 65.60 minutes
-[12:38:40]     Mean relative MAE: 1.49
-[12:38:40]     Mean Spearman rank correlation: 0.279
-[12:38:40]   Validation 3: Phi sensitivity...
-[12:38:41]     phi=0.90: mean=99.2 min
-[12:38:42]     phi=0.92: mean=97.0 min
-[12:38:43]     phi=0.94: mean=91.5 min
-[12:38:44]     phi=0.96: mean=84.7 min
-[12:38:45]     phi=0.97: mean=80.4 min
-[12:38:46]     phi=0.98: mean=68.8 min
-[12:38:47]     phi=0.99: mean=59.3 min
-[12:38:47]   Validation 4: Generation rate sensitivity...
-[12:38:47]     g*0.50: mean=93.9 min
-[12:38:48]     g*0.75: mean=78.2 min
-[12:38:49]     g*1.00: mean=67.3 min
-[12:38:50]     g*1.25: mean=61.6 min
-[12:38:51]     g*1.50: mean=58.5 min
-[12:38:52]     g*2.00: mean=47.3 min
-[12:38:52]   Validation 5: Uncertainty calibration...
-[12:38:52]     Mean uncertainty width: 63.4 min
-[12:38:52]     High confidence: 44.5%
-[12:38:52]   Validation 6: Shared vs single room comparison...
-[12:38:52]     shared: mean=44.6min, uncertainty=65.1min, N=138
-[12:38:52]     single: mean=77.2min, uncertainty=62.8min, N=397
-[12:38:52]   Validation: Out-of-sample temporal split V1/V2 + robust diagnostics...
-[12:38:53]     Out-of-sample V1 (mean unclamped): 22.94 min
-[12:38:53]     Out-of-sample median: 0.00 min, P95: 150.26 min
-[12:38:53]     Out-of-sample tail contribution (top 5%): 49.9%
-[12:38:53]   Validation: Baseline comparators...
-[12:38:55]     block_excess: V1=14.5, V2=81.9%, label1_mean=77.9
-[12:38:55]     threshold_50: V1=189.8, V2=6.2%, label1_mean=228.4
-[12:38:55]     threshold_100: V1=175.1, V2=15.3%, label1_mean=224.1
-[12:38:55]     threshold_200: V1=154.9, V2=22.6%, label1_mean=211.7
-[12:38:55]     slope: V1=62.4, V2=2.3%, label1_mean=73.3
-[12:38:55]   Validation: Semisynthetic validation...
-[12:38:57]     Semisynthetic MAE: 52.6 min, bias: -18.5 min
-[12:38:57]     Semisynthetic 80% CI coverage: 63.1%
-[12:38:57]     N scenarios evaluated: 130
-[12:38:57]   Phase 3 complete (19s)
-[12:38:57] 
+[14:18:10]   Validation 1: Label=0 sanity check (unclamped estimates)...
+[14:18:11]     Mean unclamped estimate for absent blocks: 11.19 min
+[14:18:11]     80.3% of absent blocks estimate < 5 min
+[14:18:11]   Validation 2: Leave-one-sensor-out cross-validation...
+[14:18:14]     Mean MAE (own vs cross-sensor params): 44.01 minutes
+[14:18:14]     Mean relative MAE: 1.48
+[14:18:14]     Mean Spearman rank correlation: 0.307
+[14:18:14]   Validation 3: Phi sensitivity...
+[14:18:15]     phi=0.90: mean=104.8 min
+[14:18:16]     phi=0.92: mean=98.8 min
+[14:18:17]     phi=0.94: mean=86.3 min
+[14:18:18]     phi=0.96: mean=66.5 min
+[14:18:19]     phi=0.97: mean=59.4 min
+[14:18:20]     phi=0.98: mean=47.9 min
+[14:18:22]     phi=0.99: mean=32.6 min
+[14:18:22]   Validation 4: Generation rate sensitivity...
+[14:18:23]     g*0.50: mean=59.5 min
+[14:18:24]     g*0.75: mean=45.3 min
+[14:18:25]     g*1.00: mean=36.4 min
+[14:18:26]     g*1.25: mean=31.6 min
+[14:18:30]     g*1.50: mean=27.8 min
+[14:18:31]     g*2.00: mean=22.8 min
+[14:18:31]   Validation 5: Uncertainty calibration...
+[14:18:31]     Mean uncertainty width: 50.7 min
+[14:18:31]     High confidence: 49.5%
+[14:18:31]   Validation 6: Shared vs single room comparison...
+[14:18:31]     shared: mean=34.6min, uncertainty=37.8min, N=138
+[14:18:31]     single: mean=38.0min, uncertainty=55.2min, N=397
+[14:18:31]   Validation: Out-of-sample temporal split V1/V2 + robust diagnostics...
+[14:18:32]     Out-of-sample V1 (mean unclamped): 19.54 min
+[14:18:32]     Out-of-sample median: 0.00 min, P95: 111.30 min
+[14:18:32]     Out-of-sample tail contribution (top 5%): 53.3%
+[14:18:32]   Validation: Baseline comparators...
+[14:18:44]     block_excess: V1=12.5, V2=77.4%, label1_mean=43.5
+[14:18:44]     fused_lasso: V1=49.9, V2=5.1%, label1_mean=85.6
+[14:18:44]     threshold_50: V1=189.8, V2=6.2%, label1_mean=228.4
+[14:18:44]     threshold_100: V1=175.1, V2=15.3%, label1_mean=224.1
+[14:18:44]     threshold_200: V1=154.9, V2=22.6%, label1_mean=211.7
+[14:18:44]     slope: V1=62.4, V2=2.3%, label1_mean=73.3
+[14:18:44]   Validation: Ablation ladder...
+[14:18:45]     A0: C1-OOS=51.19 min, C2-OOS=57.9%, label1_mean=87.8 min
+[14:18:45]     A1: C1-OOS=27.33 min, C2-OOS=66.7%, label1_mean=58.0 min
+[14:18:46]     A2: C1-OOS=23.72 min, C2-OOS=70.2%, label1_mean=41.9 min
+[14:18:47]     A3: C1-OOS=19.54 min, C2-OOS=77.2%, label1_mean=43.0 min
+[14:18:47]   Validation: Semisynthetic validation...
+[14:18:50]     Semisynthetic MAE: 46.6 min, bias: -38.8 min
+[14:18:50]     Semisynthetic 80% CI coverage: 54.4%
+[14:18:50]     N scenarios evaluated: 307
+[14:18:50]   Phase 3 complete (40s)
+[14:18:50] 
 [PHASE 4/6] Generating summary tables...
-[12:38:57]   Phase 4 complete (0s)
-[12:38:57] 
+[14:18:51]   Phase 4 complete (0s)
+[14:18:51] 
 [PHASE 5/6] Generating publication figures...
-[12:39:00]     fig01_histogram_by_label: OK
-[12:39:00]     fig02_time_of_day: OK
-[12:39:06]     fig03_co2_traces: OK
-[12:39:07]     fig04_sensor_params: OK
-[12:39:08]     fig05_uncertainty: OK
-[12:39:09]     fig06_label0_validation: OK
-[12:39:10]     fig07_phi_sensitivity: OK
-[12:39:10]     fig08_gen_sensitivity: OK
-[12:39:11]     fig09_shared_vs_single: OK
-[12:39:11]     fig10_individual_profiles: OK
-[12:39:16]     fig11_model_physics: OK
-[12:39:17]     fig12_daily_heatmap: OK
-[12:39:18]     fig13_semisynthetic: OK
-[12:39:18]     fig14_baseline_comparison: OK
-[12:39:18]   Phase 5 complete (22s)
-[12:39:18] 
+[14:18:54]     fig01_histogram_by_label: OK
+[14:18:54]     fig02_time_of_day: OK
+[14:18:57]     fig03_co2_traces: OK
+[14:18:57]     fig04_sensor_params: OK
+[14:18:58]     fig05_uncertainty: OK
+[14:19:00]     fig06_label0_validation: OK
+[14:19:00]     fig07_phi_sensitivity: OK
+[14:19:01]     fig08_gen_sensitivity: OK
+[14:19:01]     fig09_shared_vs_single: OK
+[14:19:05]     fig10_individual_profiles: OK
+[14:19:09]     fig11_model_physics: OK
+[14:19:10]     fig12_daily_heatmap: OK
+[14:19:11]     fig13_semisynthetic: OK
+[14:19:12]     fig14_baseline_comparison: OK
+[14:19:14]     fig15_detectability: OK
+[14:19:14]     fig16_ablation_ladder: OK
+[14:19:14]   Phase 5 complete (24s)
+[14:19:14] 
 [PHASE 6/6] Generating robustness report...
-[12:39:18]   Phase 6 complete (0s)
-[12:39:18] 
+[14:19:14]   Phase 6 complete (0s)
+[14:19:14] 
 ======================================================================
-[12:39:18] PIPELINE COMPLETE in 45 seconds
-[12:39:18] ======================================================================
-[12:39:18]   Output directory: /mnt/c/Users/Gautam/Desktop/phd/cript_co2_occupant_relation/research_outputs
-[12:39:18]   Figures:     14 PDF files
-[12:39:18]   Tables:      10 CSV files
-[12:39:18]   Validations: 11 CSV files
-[12:39:18]   Reports:     2 markdown files
-[12:39:18]   Key result:  Label=1 mean = 68.8 min per 4h block
+[14:19:14] PIPELINE COMPLETE in 68 seconds
+[14:19:14] ======================================================================
+[14:19:14]   Output directory: /mnt/c/Users/Gautam/Desktop/phd/cript_co2_occupant_relation/research_outputs
+[14:19:14]   Figures:     16 PDF files
+[14:19:14]   Tables:      12 CSV files
+[14:19:14]   Validations: 12 CSV files
+[14:19:14]   Reports:     2 markdown files
+[14:19:14]   Key result:  Label=1 mean = 37.1 min per 4h block

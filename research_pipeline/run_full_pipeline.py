@@ -17,7 +17,7 @@ import json
 import sys
 import time
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 
@@ -501,7 +501,11 @@ def _safe_sd(vals: np.ndarray, fallback: float = 10.0) -> float:
     return sd
 
 
-def _fit_empty_floor_model(empty_blocks: pl.DataFrame, cfg: Config) -> EmptyFloorModel:
+def _fit_empty_floor_model(
+    empty_blocks: pl.DataFrame,
+    cfg: Config,
+    allow_regime: bool = True,
+) -> EmptyFloorModel:
     """Fit empty-floor model with optional two-regime carryover stratification."""
     if empty_blocks.height == 0:
         return EmptyFloorModel(
@@ -520,7 +524,7 @@ def _fit_empty_floor_model(empty_blocks: pl.DataFrame, cfg: Config) -> EmptyFloo
     global_sd = _safe_sd(mean_excess, fallback=10.0)
     global_center = global_mean + cfg.floor_multiplier * global_sd
 
-    if empty_blocks.height < 8 or "carryover_mean_pred" not in empty_blocks.columns:
+    if (not allow_regime) or empty_blocks.height < 8 or "carryover_mean_pred" not in empty_blocks.columns:
         return EmptyFloorModel(
             use_regime=False,
             threshold=0.0,
@@ -1148,6 +1152,7 @@ def estimate_block_minutes_mc(
             .alias("confidence_band"),
             pl.lit(fit.phi_hat).alias("phi_hat"),
             pl.lit(fit.g_hat).alias("generation_hat"),
+            pl.lit(fit.sigma_noise).alias("sigma_noise"),
             pl.lit(fit.baseline).alias("co2_baseline"),
         ])
     )
@@ -2269,6 +2274,7 @@ def validate_baseline_comparators(
 
     methods: dict[str, list[pl.DataFrame]] = {
         "block_excess": [],
+        "fused_lasso": [],
         "threshold_50": [],
         "threshold_100": [],
         "threshold_200": [],
@@ -2288,6 +2294,19 @@ def validate_baseline_comparators(
               .unique(subset=["sensor_id", "block_date", "block"], keep="first")
               .rename({"minutes_p50": "est_min"})
         )
+
+        # Stronger comparator: minute-level fused-lasso inverse model.
+        try:
+            cfg_fused = replace(cfg, estimator="fused_lasso")
+            fl = _estimate_blocks(fit, cfg_fused, rng, clamp_absent=False)
+            methods["fused_lasso"].append(
+                fl.select(["sensor_id", "block_date", "block", "room_occupied",
+                           "minutes_p50"])
+                  .unique(subset=["sensor_id", "block_date", "block"], keep="first")
+                  .rename({"minutes_p50": "est_min"})
+            )
+        except Exception as exc:
+            log(f"    fused_lasso comparator failed for sensor {fit.sensor_id}: {exc}")
 
         for thr in [50, 100, 200]:
             tdf = baseline_threshold_estimator(fit, threshold_ppm=float(thr))
@@ -2327,6 +2346,271 @@ def validate_baseline_comparators(
         log(f"    {method_name}: V1={rows[-1]['V1_mean_label0_min']:.1f}, "
             f"V2={rows[-1]['V2_pct_under_5min']:.1f}%, "
             f"label1_mean={rows[-1]['mean_label1_min']:.1f}")
+
+    return pl.DataFrame(rows) if rows else pl.DataFrame()
+
+
+# -------------------------------------------------------------------
+# ABLATION LADDER (method evolution)
+# -------------------------------------------------------------------
+
+
+def _estimate_variant_minutes_from_stats(
+    block_stats: pl.DataFrame,
+    fit: SensorFit,
+    cfg: Config,
+    *,
+    use_carryover: bool,
+    use_regime_floor: bool,
+    use_gate: bool,
+    floor_model: EmptyFloorModel | None = None,
+) -> np.ndarray:
+    """Deterministic block-level minutes for ablation variants.
+
+    This mirrors the point-estimate path of the main estimator, with switches
+    for carryover correction, two-regime floor, and innovation gate/cap.
+    """
+    if block_stats.height == 0:
+        return np.array([], dtype=np.float64)
+
+    mean_col = "mean_excess" if use_carryover else "mean_excess_raw"
+    stats = block_stats.with_columns(pl.col(mean_col).alias("mean_excess_variant"))
+    empty_blocks = stats.filter(pl.col("room_occupied") == 0)
+    occ_blocks = stats.filter(pl.col("room_occupied") == 1)
+
+    if floor_model is None:
+        if empty_blocks.height >= 3:
+            floor_fit = empty_blocks.with_columns(
+                pl.col("mean_excess_variant").alias("mean_excess")
+            )
+            floor_model = _fit_empty_floor_model(
+                floor_fit,
+                cfg,
+                allow_regime=use_regime_floor,
+            )
+        else:
+            fallback_sd = max(fit.sigma_noise / np.sqrt(240.0), 10.0)
+            floor_model = EmptyFloorModel(
+                use_regime=False,
+                threshold=0.0,
+                global_center=0.0,
+                global_sd=fallback_sd,
+                low_center=0.0,
+                low_sd=fallback_sd,
+                high_center=0.0,
+                high_sd=fallback_sd,
+            )
+
+    carryover_pred = stats["carryover_mean_pred"].to_numpy().astype(np.float64)
+    floor_center, _, _ = _predict_floor_from_model(floor_model, carryover_pred)
+
+    g_safe = max(fit.g_hat, 1e-6)
+    one_minus_phi = max(1.0 - fit.phi_hat, 1e-6)
+    block_duration = 240.0
+    fwf = _finite_window_factor(fit.phi_hat, block_duration)
+    excess_ss_physics = (g_safe / one_minus_phi) * fwf
+
+    if occ_blocks.height >= 5 and empty_blocks.height >= 3:
+        occ_floor_center, _, _ = _predict_floor_from_model(
+            floor_model, occ_blocks["carryover_mean_pred"].to_numpy().astype(np.float64)
+        )
+        occ_calibrated = np.maximum(
+            occ_blocks["mean_excess_variant"].to_numpy().astype(np.float64) - occ_floor_center, 0.0
+        )
+        data_scale = max(float(np.quantile(occ_calibrated, 0.75)), 20.0)
+        excess_ss = 0.5 * data_scale + 0.5 * excess_ss_physics
+    else:
+        excess_ss = excess_ss_physics
+
+    mean_excess_variant = stats["mean_excess_variant"].to_numpy().astype(np.float64)
+    cal_excess = np.maximum(mean_excess_variant - floor_center, 0.0)
+    minutes = np.clip(cal_excess / max(excess_ss, 1.0), 0.0, 1.0) * block_duration
+
+    if use_gate:
+        phi_innov = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        innovation_sum = (
+            stats["innovation_curr_sum"].to_numpy().astype(np.float64)
+            - phi_innov * stats["innovation_prev_sum"].to_numpy().astype(np.float64)
+        )
+        n_pairs = stats["n_innovation_pairs"].to_numpy().astype(np.float64)
+        minutes = _apply_innovation_gate_and_cap(
+            minutes,
+            innovation_sum,
+            n_pairs,
+            fit.g_hat,
+            fit.sigma_noise,
+        )
+
+    return np.clip(minutes, 0.0, 240.0)
+
+
+def run_ablation_ladder(
+    bundle: DataBundle,
+    fits: list[SensorFit],
+    cfg: Config,
+) -> pl.DataFrame:
+    """Compute stepwise ablation metrics for method components.
+
+    Ablation order:
+      A0: raw block excess + global floor (no carryover correction, no gate)
+      A1: + carryover correction
+      A2: + innovation significance gate/cap
+      A3: + two-regime empty floor (final method)
+    """
+    log("  Validation: Ablation ladder...")
+
+    variants = [
+        {
+            "variant_id": "A0",
+            "variant": "Raw excess + global floor (no carryover, no gate)",
+            "use_carryover": False,
+            "use_regime_floor": False,
+            "use_gate": False,
+        },
+        {
+            "variant_id": "A1",
+            "variant": "+ Carryover correction",
+            "use_carryover": True,
+            "use_regime_floor": False,
+            "use_gate": False,
+        },
+        {
+            "variant_id": "A2",
+            "variant": "+ Innovation gate/cap",
+            "use_carryover": True,
+            "use_regime_floor": False,
+            "use_gate": True,
+        },
+        {
+            "variant_id": "A3",
+            "variant": "+ Two-regime floor (final)",
+            "use_carryover": True,
+            "use_regime_floor": True,
+            "use_gate": True,
+        },
+    ]
+
+    rows: list[dict] = []
+
+    for v in variants:
+        ins_empty_vals: list[float] = []
+        ins_occ_vals: list[float] = []
+        oos_empty_vals: list[float] = []
+
+        for fit in fits:
+            arr = fit.arr
+            arr_dedup = (
+                arr
+                .select(SENSOR_BLOCK_KEY_COLS + [
+                    "timestamp_min", "dt_min", "excess", "excess_prev",
+                    "innovation", "co2_smooth", "present",
+                ])
+                .unique(subset=SENSOR_BLOCK_KEY_COLS + ["timestamp_min"], keep="first")
+                .sort(SENSOR_BLOCK_KEY_COLS + ["timestamp_min"])
+            )
+            arr_dedup = arr_dedup.with_columns(
+                pl.col("present").max().over(SENSOR_BLOCK_KEY_COLS).alias("room_occupied")
+            )
+
+            block_stats = _build_sensor_block_stats(arr_dedup, fit, cfg)
+            if block_stats.height == 0:
+                continue
+            block_stats = block_stats.with_row_index("row_idx")
+
+            mins_full = _estimate_variant_minutes_from_stats(
+                block_stats,
+                fit,
+                cfg,
+                use_carryover=v["use_carryover"],
+                use_regime_floor=v["use_regime_floor"],
+                use_gate=v["use_gate"],
+            )
+
+            occ = block_stats["room_occupied"].to_numpy().astype(int)
+            if mins_full.size > 0:
+                ins_empty_vals.extend(mins_full[occ == 0].tolist())
+                ins_occ_vals.extend(mins_full[occ == 1].tolist())
+
+            # Temporal split OOS on empty blocks only (same split protocol as C1-OOS/C2-OOS).
+            empty_sorted = (
+                block_stats
+                .filter(pl.col("room_occupied") == 0)
+                .sort("block_date", "block")
+            )
+            if empty_sorted.height < 5:
+                continue
+
+            n_train = max(1, int(empty_sorted.height * 0.7))
+            train = empty_sorted.head(n_train)
+            test = empty_sorted.tail(empty_sorted.height - n_train)
+            if test.height == 0:
+                continue
+
+            mean_col = "mean_excess" if v["use_carryover"] else "mean_excess_raw"
+            if train.height >= 3:
+                train_for_floor = train.with_columns(pl.col(mean_col).alias("mean_excess"))
+                floor_model_train = _fit_empty_floor_model(
+                    train_for_floor,
+                    cfg,
+                    allow_regime=v["use_regime_floor"],
+                )
+            else:
+                fallback_sd = max(fit.sigma_noise / np.sqrt(240.0), 10.0)
+                floor_model_train = EmptyFloorModel(
+                    use_regime=False,
+                    threshold=0.0,
+                    global_center=0.0,
+                    global_sd=fallback_sd,
+                    low_center=0.0,
+                    low_sd=fallback_sd,
+                    high_center=0.0,
+                    high_sd=fallback_sd,
+                )
+
+            mins_with_train_floor = _estimate_variant_minutes_from_stats(
+                block_stats,
+                fit,
+                cfg,
+                use_carryover=v["use_carryover"],
+                use_regime_floor=v["use_regime_floor"],
+                use_gate=v["use_gate"],
+                floor_model=floor_model_train,
+            )
+            row_idx_all = block_stats["row_idx"].to_numpy()
+            test_idx = test["row_idx"].to_numpy()
+            test_mask = np.isin(row_idx_all, test_idx)
+            oos_empty_vals.extend(mins_with_train_floor[test_mask].tolist())
+
+        ins_empty = np.asarray(ins_empty_vals, dtype=np.float64)
+        ins_occ = np.asarray(ins_occ_vals, dtype=np.float64)
+        oos_empty = np.asarray(oos_empty_vals, dtype=np.float64)
+
+        c1_in = float(np.mean(ins_empty)) if ins_empty.size > 0 else float("nan")
+        c2_in = float(np.mean(ins_empty < 5.0) * 100.0) if ins_empty.size > 0 else float("nan")
+        c1_oos = float(np.mean(oos_empty)) if oos_empty.size > 0 else float("nan")
+        c2_oos = float(np.mean(oos_empty < 5.0) * 100.0) if oos_empty.size > 0 else float("nan")
+        label1_mean = float(np.mean(ins_occ)) if ins_occ.size > 0 else float("nan")
+        label1_median = float(np.median(ins_occ)) if ins_occ.size > 0 else float("nan")
+        label1_nonzero = float(np.mean(ins_occ > 0.0) * 100.0) if ins_occ.size > 0 else float("nan")
+
+        rows.append({
+            "variant_id": v["variant_id"],
+            "variant": v["variant"],
+            "C1_in_mean_label0_min": c1_in,
+            "C2_in_pct_under_5min": c2_in,
+            "C1_OOS_mean_label0_min": c1_oos,
+            "C2_OOS_pct_under_5min": c2_oos,
+            "label1_mean_minutes": label1_mean,
+            "label1_median_minutes": label1_median,
+            "label1_nonzero_pct": label1_nonzero,
+            "n_oos_empty_blocks": int(oos_empty.size),
+            "pass_C1_OOS_lt20": "YES" if np.isfinite(c1_oos) and c1_oos < 20.0 else "NO",
+            "pass_C2_OOS_gt50": "YES" if np.isfinite(c2_oos) and c2_oos > 50.0 else "NO",
+        })
+        log(
+            f"    {v['variant_id']}: C1-OOS={c1_oos:.2f} min, "
+            f"C2-OOS={c2_oos:.1f}%, label1_mean={label1_mean:.1f} min"
+        )
 
     return pl.DataFrame(rows) if rows else pl.DataFrame()
 
@@ -2750,6 +3034,103 @@ def fig14_baseline_comparison(comparison_df: pl.DataFrame, out_path: Path,
     plt.close(fig)
 
 
+def fig15_detectability(block_est: pl.DataFrame, out_path: Path, fmt: str, dpi: int):
+    """Visualize minimum detectable duration implied by innovation-noise gate."""
+    plt = setup_matplotlib()
+
+    needed = {"sensor_id", "block_date", "block", "present", "n_innovation_pairs",
+              "sigma_noise", "generation_hat", "estimated_occupied_minutes"}
+    if not needed.issubset(set(block_est.columns)):
+        return
+
+    room_level = (
+        block_est
+        .filter(pl.col("present") == 1)
+        .select([
+            "sensor_id", "block_date", "block",
+            "n_innovation_pairs", "sigma_noise", "generation_hat",
+            "estimated_occupied_minutes",
+        ])
+        .unique(subset=["sensor_id", "block_date", "block"], keep="first")
+    )
+    if room_level.height == 0:
+        return
+
+    room_level = room_level.with_columns(
+        (
+            pl.lit(INNOVATION_Z_SCORE)
+            * pl.col("sigma_noise").clip(lower_bound=1.0)
+            * pl.col("n_innovation_pairs").clip(lower_bound=1.0).sqrt()
+            / pl.col("generation_hat").clip(lower_bound=1.0)
+        ).alias("m_min_detectable")
+    )
+
+    mmin = room_level["m_min_detectable"].to_numpy()
+    est = room_level["estimated_occupied_minutes"].to_numpy()
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+
+    # (a) Distribution of minimum detectable minutes.
+    bins = np.arange(0, max(121, int(np.nanmax(mmin)) + 10), 5)
+    axes[0].hist(mmin, bins=bins, color=C_STEEL, alpha=0.85, edgecolor="white")
+    axes[0].axvline(30, color=C_ORANGE, linestyle="--", linewidth=1.5, label="30 min")
+    axes[0].axvline(60, color=C_CORAL, linestyle="--", linewidth=1.5, label="60 min")
+    axes[0].set_xlabel(r"$M_{\min}^{(b)}$ (minutes)")
+    axes[0].set_ylabel("Count")
+    axes[0].set_title("(a) Detectability Threshold Distribution")
+    axes[0].legend(fontsize=9)
+
+    # (b) Relationship between detectability threshold and estimates.
+    axes[1].scatter(mmin, est, alpha=0.35, s=18, color=C_NAVY, edgecolors="none")
+    axes[1].axvline(30, color=C_ORANGE, linestyle="--", linewidth=1.2)
+    axes[1].axvline(60, color=C_CORAL, linestyle="--", linewidth=1.2)
+    axes[1].set_xlabel(r"$M_{\min}^{(b)}$ (minutes)")
+    axes[1].set_ylabel("Estimated minutes (label=1)")
+    axes[1].set_title("(b) Estimated Duration vs Detectability")
+
+    fig.tight_layout()
+    fig.savefig(out_path, format=fmt, dpi=dpi)
+    plt.close(fig)
+
+
+def fig16_ablation_ladder(ablation_df: pl.DataFrame, out_path: Path, fmt: str, dpi: int):
+    """Ablation ladder: C1-OOS and C2-OOS progression across variants."""
+    plt = setup_matplotlib()
+    if ablation_df.height == 0:
+        return
+
+    ab = ablation_df.sort("variant_id")
+    labels = [
+        f"{vid}\n{name.split(' + ')[0]}"
+        for vid, name in zip(ab["variant_id"].to_list(), ab["variant"].to_list())
+    ]
+    c1_oos = ab["C1_OOS_mean_label0_min"].to_numpy()
+    c2_oos = ab["C2_OOS_pct_under_5min"].to_numpy()
+    x = np.arange(len(labels))
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+
+    axes[0].bar(x, c1_oos, color=C_STEEL, alpha=0.85, edgecolor="white")
+    axes[0].axhline(20, color="red", linestyle="--", linewidth=1.2, label="Criterion (<20)")
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(labels, fontsize=8)
+    axes[0].set_ylabel("C1-OOS mean unclamped minutes")
+    axes[0].set_title("(a) C1-OOS Across Ablation Steps")
+    axes[0].legend(fontsize=8)
+
+    axes[1].bar(x, c2_oos, color=C_TEAL, alpha=0.85, edgecolor="white")
+    axes[1].axhline(50, color="red", linestyle="--", linewidth=1.2, label="Criterion (>50%)")
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(labels, fontsize=8)
+    axes[1].set_ylabel("C2-OOS % under 5 min")
+    axes[1].set_title("(b) C2-OOS Across Ablation Steps")
+    axes[1].legend(fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(out_path, format=fmt, dpi=dpi)
+    plt.close(fig)
+
+
 # ===================================================================
 # PHASE 4: SUMMARY TABLES
 # ===================================================================
@@ -3009,6 +3390,69 @@ def make_table10_semisynthetic_coverage(ss_df: pl.DataFrame) -> pl.DataFrame:
     )
 
     return pl.concat([by_group, overall], how="vertical")
+
+
+def make_table11_detectability(block_est: pl.DataFrame) -> pl.DataFrame:
+    """Detectability diagnostics from innovation-noise threshold.
+
+    M_min^{(b)} ≈ z * sigma_e * sqrt(m_b) / g
+    where m_b is the number of valid innovation pairs in the block.
+    """
+    needed = {"sensor_id", "block_date", "block", "present", "n_innovation_pairs",
+              "sigma_noise", "generation_hat", "estimated_occupied_minutes"}
+    if not needed.issubset(set(block_est.columns)):
+        return pl.DataFrame()
+
+    room_level = (
+        block_est
+        .filter(pl.col("present") == 1)
+        .select([
+            "sensor_id", "block_date", "block",
+            "n_innovation_pairs", "sigma_noise", "generation_hat",
+            "estimated_occupied_minutes",
+        ])
+        .unique(subset=["sensor_id", "block_date", "block"], keep="first")
+    )
+    if room_level.height == 0:
+        return pl.DataFrame()
+
+    room_level = room_level.with_columns([
+        (
+            pl.lit(INNOVATION_Z_SCORE)
+            * pl.col("sigma_noise").clip(lower_bound=1.0)
+            * pl.col("n_innovation_pairs").clip(lower_bound=1.0).sqrt()
+            / pl.col("generation_hat").clip(lower_bound=1.0)
+        ).alias("m_min_detectable"),
+        (pl.col("estimated_occupied_minutes") > 0).cast(pl.Int64).alias("is_nonzero_estimate"),
+    ])
+
+    per_sensor = (
+        room_level
+        .group_by("sensor_id")
+        .agg([
+            pl.len().alias("n_label1_blocks"),
+            pl.col("m_min_detectable").mean().alias("mean_m_min"),
+            pl.col("m_min_detectable").median().alias("median_m_min"),
+            pl.col("m_min_detectable").quantile(0.90).alias("p90_m_min"),
+            (pl.col("m_min_detectable") <= 30).mean().mul(100.0).alias("pct_blocks_detectable_30min"),
+            (pl.col("m_min_detectable") <= 60).mean().mul(100.0).alias("pct_blocks_detectable_60min"),
+            pl.col("is_nonzero_estimate").mean().mul(100.0).alias("pct_nonzero_estimate"),
+        ])
+        .sort("sensor_id")
+    )
+
+    overall = room_level.select([
+        pl.lit(-1).cast(pl.Int64).alias("sensor_id"),
+        pl.len().alias("n_label1_blocks"),
+        pl.col("m_min_detectable").mean().alias("mean_m_min"),
+        pl.col("m_min_detectable").median().alias("median_m_min"),
+        pl.col("m_min_detectable").quantile(0.90).alias("p90_m_min"),
+        (pl.col("m_min_detectable") <= 30).mean().mul(100.0).alias("pct_blocks_detectable_30min"),
+        (pl.col("m_min_detectable") <= 60).mean().mul(100.0).alias("pct_blocks_detectable_60min"),
+        pl.col("is_nonzero_estimate").mean().mul(100.0).alias("pct_nonzero_estimate"),
+    ])
+
+    return pl.concat([per_sensor, overall], how="vertical")
 
 
 # ===================================================================
@@ -3891,6 +4335,10 @@ def main() -> None:
     if baseline_comp.height > 0:
         baseline_comp.write_csv(out / "validation" / "baseline_comparators.csv")
 
+    ablation_ladder = run_ablation_ladder(bundle, fits, cfg)
+    if ablation_ladder.height > 0:
+        ablation_ladder.write_csv(out / "validation" / "ablation_ladder.csv")
+
     semisynthetic = run_semisynthetic_validation(bundle, fits, cfg)
     semisynthetic.write_csv(out / "validation" / "semisynthetic_validation.csv")
 
@@ -3919,6 +4367,11 @@ def main() -> None:
         ss_cov = make_table10_semisynthetic_coverage(semisynthetic)
         if ss_cov.height > 0:
             ss_cov.write_csv(out / "tables" / "table10_semisynthetic_coverage.csv")
+    detectability_tbl = make_table11_detectability(block_est)
+    if detectability_tbl.height > 0:
+        detectability_tbl.write_csv(out / "tables" / "table11_detectability_thresholds.csv")
+    if ablation_ladder.height > 0:
+        ablation_ladder.write_csv(out / "tables" / "table12_ablation_ladder.csv")
 
     log(f"  Phase 4 complete ({time.time()-t3:.0f}s)")
 
@@ -3944,6 +4397,8 @@ def main() -> None:
         ("fig12_daily_heatmap", lambda: fig12_daily_heatmap(daily, fig_dir / f"fig12_daily_heatmap.{fmt}", fmt, dpi)),
         ("fig13_semisynthetic", lambda: fig13_semisynthetic_validation(semisynthetic, fig_dir / f"fig13_semisynthetic_validation.{fmt}", fmt, dpi)),
         ("fig14_baseline_comparison", lambda: fig14_baseline_comparison(baseline_comp, fig_dir / f"fig14_baseline_comparison.{fmt}", fmt, dpi)),
+        ("fig15_detectability", lambda: fig15_detectability(block_est, fig_dir / f"fig15_detectability_thresholds.{fmt}", fmt, dpi)),
+        ("fig16_ablation_ladder", lambda: fig16_ablation_ladder(ablation_ladder, fig_dir / f"fig16_ablation_ladder.{fmt}", fmt, dpi)),
     ]
 
     for name, job_fn in figure_jobs:

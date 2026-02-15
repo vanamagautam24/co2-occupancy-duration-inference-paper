@@ -69,8 +69,8 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 | C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
 | C1-OOS 5% trimmed mean | 12.08 min | descriptive | N/A (descriptive) |
 | C1-OOS tail contribution (top 5%) | 53.3% | descriptive | N/A (descriptive) |
-| E1 LOO mean relative MAE | 1.45 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.279 | > 0.2 | YES |
+| E1 LOO mean relative MAE | 1.48 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.307 | > 0.2 | YES |
 | E3 max phi sensitivity change | 76.5% | < 200% | YES |
 | E4 high-confidence blocks | 49.5% | > 40% | YES |
 
@@ -91,6 +91,12 @@ Source: `research_outputs/tables/table07_baseline_comparators.csv`
 
 Baseline comparison is computed on a comparable room-level subset (`n_label0=177`, `n_label1=260`) for method-to-method comparability.
 
+## New Robustness Artifacts
+- Detectability diagnostics table: `research_outputs/tables/table11_detectability_thresholds.csv`
+- Ablation ladder table: `research_outputs/tables/table12_ablation_ladder.csv`
+- Detectability figure: `research_outputs/figures/fig15_detectability_thresholds.pdf`
+- Ablation figure: `research_outputs/figures/fig16_ablation_ladder.pdf`
+
 ## Reproducing
 ```bash
 .venv/bin/python research_pipeline/run_full_pipeline.py
@@ -100,4 +106,6 @@ Main generated artifacts:
 - Validation table: `research_outputs/tables/table04_validation_metrics.csv`
 - Baseline comparison: `research_outputs/tables/table07_baseline_comparators.csv`
 - Semisynthetic summary: `research_outputs/tables/table09_semisynthetic_summary.csv`
+- Detectability summary: `research_outputs/tables/table11_detectability_thresholds.csv`
+- Ablation ladder: `research_outputs/tables/table12_ablation_ladder.csv`
 - Paper: `research_outputs/paper/main.pdf`
