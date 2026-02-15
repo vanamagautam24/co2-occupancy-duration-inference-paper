@@ -435,6 +435,7 @@ For each Monte Carlo sample $s = 1, \ldots, N_\text{MC}$:
         \delta_b^{(s)} \sim \mathcal{N}(0,\sigma_{b,\text{str}}^2), \;\;
         \xi_\sigma^{(s)} \sim \text{LogNormal}(0,\sigma_{\sigma,\text{str}}^2)
     \end{align}
+    The structural mismatch scales were set from conservative physical plausibility priors: $\sigma_{g,\text{str}} = 0.15$ (approximately 15\% metabolic variability \cite{ashrae2022standard, persily2017carbon}), $\sigma_{\phi,\text{str}} = 0.002$ (short-term ventilation drift), $\sigma_{b,\text{str}} = \SI{10}{ppm}$ (ambient baseline drift), and $\sigma_{\sigma,\text{str}} = 0.10$ (innovation-noise scale inflation).
     \item Form structurally perturbed parameters $\tilde{g}^{(s)} = g^{(s)}\xi_g^{(s)}$, $\tilde{\phi}^{(s)}=\text{clip}(\phi^{(s)}+\delta_\phi^{(s)})$, and $\tilde{\sigma}_\varepsilon^{(s)}=\hat{\sigma}_\varepsilon\xi_\sigma^{(s)}$.
     \item Compute perturbed normalization scale $S^{(s)}$ using Eq.~\eqref{eq:scale} with $(\hat{g},\hat{\phi}) \to (\tilde{g}^{(s)},\tilde{\phi}^{(s)})$.
     \item Recompute carryover-adjusted excess $\bar{E}^{(b,s)}_\text{adj}$ using Eq.~\eqref{eq:carryover_mean} with $\phi_\text{carry}^{(s)}=\min(\tilde{\phi}^{(s)}+1.28\,\text{SE}(\hat{\phi}),\phi_\text{max})$ (or its internal fallback form when pre-context is missing), then apply additive baseline mismatch $\delta_b^{(s)}$ before calibration and compute $\hat{M}^{(b,s)}$ using Eqs.~\eqref{eq:cal_excess}--\eqref{eq:minutes} and the innovation-consistency cap/gate with $\tilde{\sigma}_\varepsilon^{(s)}$.
@@ -1070,7 +1071,7 @@ Applied to 12~sensors monitoring 24~participants over 68~days, all four independ
 
 The method is computationally efficient (under one minute on standard hardware), requires no supervised training data---only binary block-level presence labels for calibration---and provides full Monte Carlo uncertainty quantification. It is applicable to any residential or office setting where CO\textsubscript{2} is measured continuously and binary presence/absence labels are available for calibration.
 
-Future work should address minute-level temporal resolution (potentially through complementary sensor fusion), multi-occupant disaggregation in shared rooms, and validation against minute-level ground truth in controlled experiments.
+Future work should address minute-level temporal resolution (potentially through complementary sensor fusion), multi-occupant disaggregation in shared rooms, and validation of the CO\textsubscript{2}-equivalent duration metric using either wearable metabolic trackers or physics-based digital twins (e.g., mass-balance engines such as CONTAM) where generation schedules and air exchange rates are known.
 
 % =============================================================================
 % References
