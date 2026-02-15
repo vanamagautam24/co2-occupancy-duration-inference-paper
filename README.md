@@ -66,13 +66,15 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 | C2 in-sample % under 5 min | 80.3% | > 60% | YES |
 | C1-OOS mean unclamped (label=0) | 19.54 min | < 20 | YES |
 | C2-OOS % under 5 min | 77.2% | > 50% | YES |
-| C1-OOS median unclamped | 0.00 min | report | NA |
-| C1-OOS 5% trimmed mean | 12.08 min | report | NA |
-| C1-OOS tail contribution (top 5%) | 53.3% | report | NA |
+| C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
+| C1-OOS 5% trimmed mean | 12.08 min | descriptive | N/A (descriptive) |
+| C1-OOS tail contribution (top 5%) | 53.3% | descriptive | N/A (descriptive) |
 | E1 LOO mean relative MAE | 1.40 | < 1.5 | YES |
 | E2 LOO mean Spearman rho | 0.314 | > 0.2 | YES |
 | E3 max phi sensitivity change | 76.5% | < 200% | YES |
 | E4 high-confidence blocks | 49.5% | > 40% | YES |
+
+`N/A (descriptive)` means the metric is reported for interpretation (robustness/tail behavior), not used as a pass/fail criterion.
 
 ## Semisynthetic CI Coverage (Latest Run)
 Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
