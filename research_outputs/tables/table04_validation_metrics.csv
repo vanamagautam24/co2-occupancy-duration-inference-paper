@@ -1,13 +1,13 @@
 test,value,criterion,pass,interpretation
-V1: Label=0 mean unclamped minutes (in-sample),14.71,< 15,YES,Model correctly identifies empty rooms from CO2
-V2: Label=0 % under 5 min (in-sample),84.5,> 60%,YES,Majority of absent blocks produce near-zero estimates
-V1-OOS: Label=0 mean unclamped minutes (out-of-sample),22.94,< 20,NO,Temporal-split calibration degrades with limited training data
-V2-OOS: Label=0 % under 5 min (out-of-sample),75.4,> 50%,YES,Majority of held-out absent blocks produce near-zero estimates
+V1: Label=0 mean unclamped minutes (in-sample),11.19,< 15,YES,Model correctly identifies empty rooms from CO2
+V2: Label=0 % under 5 min (in-sample),80.3,> 60%,YES,Majority of absent blocks produce near-zero estimates
+V1-OOS: Label=0 mean unclamped minutes (out-of-sample),19.54,< 20,YES,Temporal-split calibration degrades with limited training data
+V2-OOS: Label=0 % under 5 min (out-of-sample),77.2,> 50%,YES,Majority of held-out absent blocks produce near-zero estimates
 V1-OOS robust: median unclamped minutes,0.0,report,NA,Typical held-out empty block estimate
-V1-OOS robust: P95 unclamped minutes,150.26,report,NA,Tail severity of held-out empty-block errors
-V1-OOS robust: 5% trimmed mean,15.71,report,NA,Mean after trimming top/bottom 5% (tail-robust)
-V1-OOS tail share from top 5% blocks,49.9,report,NA,How much OOS mean is dominated by rare high-carryover blocks
-V3: LOO mean relative MAE,1.49,< 1.5,YES,Cross-sensor parameter estimates within 150% of sensor-specific
-V4: LOO mean Spearman rank correlation,0.279,> 0.2,YES,Block rank ordering preserved with cross-sensor parameters
-V5: Max phi sensitivity (% change),26.2,< 200%,YES,Estimates change smoothly with decay parameter
-V6: % blocks with high confidence,44.5,> 40%,YES,Substantial fraction of estimates have tight uncertainty
+V1-OOS robust: P95 unclamped minutes,111.3,report,NA,Tail severity of held-out empty-block errors
+V1-OOS robust: 5% trimmed mean,12.08,report,NA,Mean after trimming top/bottom 5% (tail-robust)
+V1-OOS tail share from top 5% blocks,53.3,report,NA,How much OOS mean is dominated by rare high-carryover blocks
+V3: LOO mean relative MAE,1.4,< 1.5,YES,Cross-sensor parameter estimates within 150% of sensor-specific
+V4: LOO mean Spearman rank correlation,0.314,> 0.2,YES,Block rank ordering preserved with cross-sensor parameters
+V5: Max phi sensitivity (% change),76.5,< 200%,YES,Estimates change smoothly with decay parameter
+V6: % blocks with high confidence,49.5,> 40%,YES,Substantial fraction of estimates have tight uncertainty

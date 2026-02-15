@@ -392,10 +392,23 @@ class SensorFit:
 
 
 SENSOR_BLOCK_KEY_COLS = ["sensor_id", "block_date", "block", "block_start_ts", "block_end_ts"]
-INNOVATION_GATE_MINUTES = 8.0
+INNOVATION_Z_SCORE = 1.28
 INNOVATION_CAP_SLACK_MINUTES = 15.0
 TAIL_FRACTION = 0.05
 TRIM_FRACTION = 0.05
+MAX_PRECONTEXT_GAP_MIN = 30.0
+
+
+@dataclass
+class EmptyFloorModel:
+    use_regime: bool
+    threshold: float
+    global_center: float
+    global_sd: float
+    low_center: float
+    low_sd: float
+    high_center: float
+    high_sd: float
 
 
 def _finite_window_factor(phi: float, n_minutes: float) -> float:
@@ -479,14 +492,126 @@ def _robust_stats_from_minutes(vals: np.ndarray) -> dict[str, float]:
     }
 
 
+def _safe_sd(vals: np.ndarray, fallback: float = 10.0) -> float:
+    if vals.size < 2:
+        return fallback
+    sd = float(np.std(vals, ddof=1))
+    if (not np.isfinite(sd)) or sd < 1.0:
+        return fallback
+    return sd
+
+
+def _fit_empty_floor_model(empty_blocks: pl.DataFrame, cfg: Config) -> EmptyFloorModel:
+    """Fit empty-floor model with optional two-regime carryover stratification."""
+    if empty_blocks.height == 0:
+        return EmptyFloorModel(
+            use_regime=False,
+            threshold=0.0,
+            global_center=0.0,
+            global_sd=10.0,
+            low_center=0.0,
+            low_sd=10.0,
+            high_center=0.0,
+            high_sd=10.0,
+        )
+
+    mean_excess = empty_blocks["mean_excess"].to_numpy().astype(np.float64)
+    global_mean = float(np.mean(mean_excess))
+    global_sd = _safe_sd(mean_excess, fallback=10.0)
+    global_center = global_mean + cfg.floor_multiplier * global_sd
+
+    if empty_blocks.height < 8 or "carryover_mean_pred" not in empty_blocks.columns:
+        return EmptyFloorModel(
+            use_regime=False,
+            threshold=0.0,
+            global_center=global_center,
+            global_sd=global_sd,
+            low_center=global_center,
+            low_sd=global_sd,
+            high_center=global_center,
+            high_sd=global_sd,
+        )
+
+    pred = empty_blocks["carryover_mean_pred"].to_numpy().astype(np.float64)
+    if np.all(~np.isfinite(pred)):
+        return EmptyFloorModel(
+            use_regime=False,
+            threshold=0.0,
+            global_center=global_center,
+            global_sd=global_sd,
+            low_center=global_center,
+            low_sd=global_sd,
+            high_center=global_center,
+            high_sd=global_sd,
+        )
+
+    threshold = float(np.nanquantile(pred, 0.75))
+    low_mask = np.nan_to_num(pred, nan=-np.inf) <= threshold
+    high_mask = ~low_mask
+
+    low_vals = mean_excess[low_mask]
+    high_vals = mean_excess[high_mask]
+    if low_vals.size < 3 or high_vals.size < 3:
+        return EmptyFloorModel(
+            use_regime=False,
+            threshold=threshold,
+            global_center=global_center,
+            global_sd=global_sd,
+            low_center=global_center,
+            low_sd=global_sd,
+            high_center=global_center,
+            high_sd=global_sd,
+        )
+
+    low_mean = float(np.mean(low_vals))
+    high_mean = float(np.mean(high_vals))
+    low_sd = _safe_sd(low_vals, fallback=global_sd)
+    high_sd = _safe_sd(high_vals, fallback=global_sd)
+    low_center = low_mean + cfg.floor_multiplier * low_sd
+    high_center = high_mean + cfg.floor_multiplier * high_sd
+
+    return EmptyFloorModel(
+        use_regime=True,
+        threshold=threshold,
+        global_center=global_center,
+        global_sd=global_sd,
+        low_center=low_center,
+        low_sd=low_sd,
+        high_center=high_center,
+        high_sd=high_sd,
+    )
+
+
+def _predict_floor_from_model(
+    model: EmptyFloorModel,
+    carryover_pred: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    pred = np.asarray(carryover_pred, dtype=np.float64)
+    if not model.use_regime:
+        center = np.full(pred.shape, model.global_center, dtype=np.float64)
+        sd = np.full(pred.shape, model.global_sd, dtype=np.float64)
+        is_high = np.zeros(pred.shape, dtype=bool)
+        return center, sd, is_high
+
+    is_high = np.nan_to_num(pred, nan=-np.inf) > model.threshold
+    center = np.where(is_high, model.high_center, model.low_center).astype(np.float64)
+    sd = np.where(is_high, model.high_sd, model.low_sd).astype(np.float64)
+    return center, sd, is_high
+
+
 def _apply_innovation_gate_and_cap(
     minutes: np.ndarray,
     innovation_sum: np.ndarray,
+    n_innovation_pairs: np.ndarray,
     generation_rate: float,
+    sigma_noise: float,
 ) -> np.ndarray:
-    m_innov = np.maximum(innovation_sum / max(generation_rate, 1.0), 0.0)
+    innov = np.asarray(innovation_sum, dtype=np.float64)
+    n_pairs = np.maximum(np.asarray(n_innovation_pairs, dtype=np.float64), 0.0)
+    noise_thr = INNOVATION_Z_SCORE * max(sigma_noise, 1.0) * np.sqrt(np.maximum(n_pairs, 1.0))
+    m_innov = np.maximum((innov - noise_thr) / max(generation_rate, 1.0), 0.0)
     capped = np.minimum(minutes, m_innov + INNOVATION_CAP_SLACK_MINUTES)
-    gated = np.where(m_innov < INNOVATION_GATE_MINUTES, 0.0, capped)
+    gated = np.where(m_innov <= 0.0, 0.0, capped)
     return np.clip(gated, 0.0, 240.0)
 
 
@@ -497,6 +622,7 @@ def _build_sensor_block_stats(
 ) -> pl.DataFrame:
     """Build block-level features with carryover-aware corrections."""
     phi_carry = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+    phi_innov = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
 
     grouped = (
         arr_dedup
@@ -505,7 +631,6 @@ def _build_sensor_block_stats(
             pl.len().alias("data_minutes"),
             pl.col("timestamp_min").sort().alias("ts_list"),
             pl.col("excess").sort_by("timestamp_min").alias("excess_list"),
-            pl.col("innovation").sort_by("timestamp_min").alias("innovation_list"),
             pl.col("co2_smooth").mean().alias("mean_co2_ppm"),
             pl.col("co2_smooth").max().alias("peak_co2_ppm"),
             pl.col("present").max().alias("room_occupied"),
@@ -520,7 +645,6 @@ def _build_sensor_block_stats(
 
     for row in grouped.iter_rows(named=True):
         excess = np.asarray(row["excess_list"], dtype=np.float64)
-        innov = np.asarray(row["innovation_list"], dtype=np.float64)
         ts_list = row["ts_list"]
         n = int(row["data_minutes"])
         if n == 0:
@@ -528,24 +652,34 @@ def _build_sensor_block_stats(
 
         ts_first = ts_list[0]
         ts_last = ts_list[-1]
-        start_excess_10m = float(np.mean(excess[: min(10, n)]))
+        start_window = excess[: min(10, n)]
+        start_excess_10m = float(np.mean(start_window))
+        start_excess_med10 = float(np.median(start_window))
+        start_excess_q75_10 = float(np.percentile(start_window, 75))
 
         pre_excess = 0.0
         pre_gap_min = np.nan
+        has_precontext = False
         if prev_last_ts is not None:
             pre_gap_min = float((ts_first - prev_last_ts).total_seconds() / 60.0)
-            if np.isfinite(pre_gap_min) and pre_gap_min <= 360.0:
+            if np.isfinite(pre_gap_min) and pre_gap_min <= MAX_PRECONTEXT_GAP_MIN:
                 if prev_tail_excess.size > 0:
                     pre_excess = float(np.max(np.maximum(prev_tail_excess, 0.0)))
-            else:
-                pre_excess = 0.0
+                    has_precontext = pre_excess > 0.0
 
-        if np.isfinite(pre_gap_min):
+        if has_precontext and np.isfinite(pre_gap_min):
             carryover_mean = _carryover_mean(pre_excess, phi_carry, pre_gap_min, float(n))
             carry_series = pre_excess * (phi_carry ** (pre_gap_min + np.arange(n)))
+            carry_source = "pre_context"
         else:
-            carryover_mean = 0.0
-            carry_series = np.zeros(n, dtype=np.float64)
+            # Fallback when no reliable pre-block context is available:
+            # assume high start-of-block excess is carryover and decay it internally.
+            internal_anchor = max(start_excess_med10, 0.0)
+            carry_series = internal_anchor * (phi_carry ** np.arange(n))
+            carryover_mean = float(np.mean(carry_series))
+            carry_source = "internal_start"
+            pre_excess = 0.0
+            pre_gap_min = np.nan
 
         excess_adj = np.maximum(excess - carry_series, 0.0)
         mean_excess_raw = float(np.mean(excess))
@@ -555,10 +689,25 @@ def _build_sensor_block_stats(
         peak_excess_adj = float(np.max(excess_adj))
         sd_excess_adj = float(np.std(excess_adj, ddof=1)) if n > 1 else 0.0
 
-        valid_innov = innov[np.isfinite(innov)]
-        if valid_innov.size > 0:
-            innovation_sum = float(np.sum(valid_innov))
+        if n > 1:
+            dt_pairs = np.array([
+                float((ts_list[i] - ts_list[i - 1]).total_seconds() / 60.0)
+                for i in range(1, n)
+            ], dtype=np.float64)
+            valid_pairs = dt_pairs == 1.0
+            n_innov_pairs = int(np.sum(valid_pairs))
+            if n_innov_pairs > 0:
+                prev_sum = float(np.sum(excess[:-1][valid_pairs]))
+                curr_sum = float(np.sum(excess[1:][valid_pairs]))
+                innovation_sum = curr_sum - phi_innov * prev_sum
+            else:
+                prev_sum = 0.0
+                curr_sum = 0.0
+                innovation_sum = 0.0
         else:
+            n_innov_pairs = 0
+            prev_sum = 0.0
+            curr_sum = 0.0
             innovation_sum = 0.0
 
         rows.append({
@@ -578,10 +727,17 @@ def _build_sensor_block_stats(
             "peak_co2_ppm": float(row["peak_co2_ppm"]),
             "room_occupied": int(row["room_occupied"]),
             "start_excess_10m": start_excess_10m,
+            "start_excess_med10": start_excess_med10,
+            "start_excess_q75_10m": start_excess_q75_10,
             "pre_excess": pre_excess,
             "pre_gap_min": float(pre_gap_min) if np.isfinite(pre_gap_min) else np.nan,
             "carryover_mean_pred": carryover_mean,
+            "carryover_source": carry_source,
             "innovation_sum": innovation_sum,
+            "innovation_prev_sum": prev_sum,
+            "innovation_curr_sum": curr_sum,
+            "n_innovation_pairs": n_innov_pairs,
+            "phi_innov_used": phi_innov,
             "prev_block_room_occupied": int(prev_room_occupied) if prev_room_occupied is not None else None,
         })
 
@@ -822,15 +978,19 @@ def estimate_block_minutes_mc(
     occ_blocks = sensor_block_stats.filter(pl.col("room_occupied") == 1)
 
     if empty_blocks.height >= 3:
-        empty_mean = float(empty_blocks.select(pl.col("mean_excess").mean()).item())
-        empty_sd = float(empty_blocks.select(pl.col("mean_excess").std()).item())
-        if np.isnan(empty_sd) or empty_sd < 1.0:
-            empty_sd = 10.0
-        empty_floor = empty_mean + cfg.floor_multiplier * empty_sd
+        floor_model = _fit_empty_floor_model(empty_blocks, cfg)
     else:
-        # Fallback: use overall noise estimate
-        empty_floor = 0.0
-        empty_sd = fit.sigma_noise / np.sqrt(block_duration)
+        fallback_sd = max(fit.sigma_noise / np.sqrt(block_duration), 10.0)
+        floor_model = EmptyFloorModel(
+            use_regime=False,
+            threshold=0.0,
+            global_center=0.0,
+            global_sd=fallback_sd,
+            low_center=0.0,
+            low_sd=fallback_sd,
+            high_center=0.0,
+            high_sd=fallback_sd,
+        )
 
     g_safe = max(fit.g_hat, 1e-6)
     one_minus_phi = max(1.0 - fit.phi_hat, 1e-6)
@@ -838,31 +998,57 @@ def estimate_block_minutes_mc(
     finite_window_factor = _finite_window_factor(fit.phi_hat, n_block)
     excess_ss_physics = (g_safe / one_minus_phi) * finite_window_factor
 
+    carryover_pred_arr = sensor_block_stats["carryover_mean_pred"].to_numpy().astype(np.float64)
+    floor_center_arr, floor_sd_arr, floor_is_high_arr = _predict_floor_from_model(floor_model, carryover_pred_arr)
+    empty_floor = float(np.mean(floor_center_arr)) if floor_center_arr.size > 0 else 0.0
+    empty_sd = float(np.mean(floor_sd_arr)) if floor_sd_arr.size > 0 else 10.0
+
     if occ_blocks.height >= 5 and empty_blocks.height >= 3:
-        occ_median = float(occ_blocks.select(pl.col("mean_excess").quantile(0.75)).item())
-        data_scale = max(occ_median - empty_floor, 20.0)
+        occ_floor_center, _, _ = _predict_floor_from_model(
+            floor_model, occ_blocks["carryover_mean_pred"].to_numpy().astype(np.float64)
+        )
+        occ_calibrated = np.maximum(
+            occ_blocks["mean_excess"].to_numpy().astype(np.float64) - occ_floor_center, 0.0
+        )
+        data_scale = max(float(np.quantile(occ_calibrated, 0.75)), 20.0)
         excess_ss = 0.5 * data_scale + 0.5 * excess_ss_physics
     else:
+        data_scale = None
         excess_ss = excess_ss_physics
 
     innovation_sum_arr = sensor_block_stats["innovation_sum"].to_numpy()
+    innovation_prev_sum_arr = sensor_block_stats["innovation_prev_sum"].to_numpy()
+    innovation_curr_sum_arr = sensor_block_stats["innovation_curr_sum"].to_numpy()
+    n_innov_pairs_arr = sensor_block_stats["n_innovation_pairs"].to_numpy().astype(np.float64)
     data_minutes_arr = sensor_block_stats["data_minutes"].to_numpy().astype(float)
     pre_excess_arr = np.nan_to_num(sensor_block_stats["pre_excess"].to_numpy(), nan=0.0)
     pre_gap_arr = np.nan_to_num(sensor_block_stats["pre_gap_min"].to_numpy(), nan=0.0)
+    start_excess_med_arr = np.nan_to_num(sensor_block_stats["start_excess_med10"].to_numpy(), nan=0.0)
+    has_precontext_arr = np.isfinite(sensor_block_stats["pre_gap_min"].to_numpy()) & (pre_excess_arr > 0.0)
     mean_excess_raw_arr = np.nan_to_num(sensor_block_stats["mean_excess_raw"].to_numpy(), nan=0.0)
+    mean_excess_adj_arr = sensor_block_stats["mean_excess"].to_numpy().astype(np.float64)
     room_occ_arr = sensor_block_stats["room_occupied"].to_numpy().astype(int)
 
     # --- Point estimate ---
     sensor_block_stats = sensor_block_stats.with_columns([
-        (pl.col("mean_excess") - pl.lit(empty_floor)).clip(lower_bound=0.0).alias("calibrated_excess"),
-        pl.lit(empty_floor).alias("empty_floor"),
+        pl.Series("empty_floor", floor_center_arr),
+        pl.Series("empty_floor_sd", floor_sd_arr),
+        pl.Series("empty_floor_regime_high", floor_is_high_arr.astype(int)),
+    ]).with_columns([
+        (pl.col("mean_excess") - pl.col("empty_floor")).clip(lower_bound=0.0).alias("calibrated_excess"),
     ])
 
     point_minutes = (
         np.clip(sensor_block_stats["calibrated_excess"].to_numpy() / max(excess_ss, 1.0), 0.0, 1.0)
         * block_duration
     )
-    point_minutes = _apply_innovation_gate_and_cap(point_minutes, innovation_sum_arr, fit.g_hat)
+    point_minutes = _apply_innovation_gate_and_cap(
+        point_minutes,
+        innovation_sum_arr,
+        n_innov_pairs_arr,
+        fit.g_hat,
+        fit.sigma_noise,
+    )
     sensor_block_stats = sensor_block_stats.with_columns([
         pl.Series("minutes_point", point_minutes),
         pl.Series("occ_fraction_point", np.clip(point_minutes / block_duration, 0.0, 1.0)),
@@ -883,24 +1069,36 @@ def estimate_block_minutes_mc(
             rng.normal(fit.g_hat, fit.g_se), cfg.generation_min, cfg.generation_max
         ))
 
-        floor_s = max(0.0, rng.normal(empty_floor, empty_sd * 0.5))
+        floor_s = np.maximum(0.0, rng.normal(floor_center_arr, floor_sd_arr * 0.5))
 
         one_minus_phi_s = max(1.0 - phi_s, 1e-6)
         fwf_s = _finite_window_factor(phi_s, block_duration)
         physics_scale_s = (g_s / one_minus_phi_s) * fwf_s
-        if occ_blocks.height >= 5 and empty_blocks.height >= 3:
+        if data_scale is not None:
             excess_ss_s = 0.5 * data_scale + 0.5 * physics_scale_s
         else:
             excess_ss_s = physics_scale_s
 
-        # Carryover-adjusted mean excess for this sampled phi
-        carry_s = _carryover_mean(pre_excess_arr, phi_s, pre_gap_arr, data_minutes_arr)
+        phi_carry_s = float(np.clip(phi_s + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        carry_pre_s = _carryover_mean(pre_excess_arr, phi_carry_s, pre_gap_arr, data_minutes_arr)
+        carry_internal_s = _carryover_mean(start_excess_med_arr, phi_carry_s, 0.0, data_minutes_arr)
+        carry_s = np.where(has_precontext_arr, carry_pre_s, carry_internal_s)
         mean_excess_adj_s = np.maximum(mean_excess_raw_arr - carry_s, 0.0)
+        # Keep sampled adjusted means anchored to observed adjusted values.
+        mean_excess_adj_s = 0.5 * mean_excess_adj_s + 0.5 * mean_excess_adj_arr
         cal_excess = np.maximum(mean_excess_adj_s - floor_s, 0.0)
 
         occ_frac = np.clip(cal_excess / max(excess_ss_s, 1.0), 0.0, 1.0)
         minutes = occ_frac * block_duration
-        minutes = _apply_innovation_gate_and_cap(minutes, innovation_sum_arr, g_s)
+        phi_innov_s = float(np.clip(phi_s + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        innovation_sum_s = innovation_curr_sum_arr - phi_innov_s * innovation_prev_sum_arr
+        minutes = _apply_innovation_gate_and_cap(
+            minutes,
+            innovation_sum_s,
+            n_innov_pairs_arr,
+            g_s,
+            fit.sigma_noise,
+        )
 
         if clamp_absent:
             minutes = np.where(room_occ_arr == 1, minutes, 0.0)
@@ -1782,12 +1980,11 @@ def validate_label0_temporal_split(
         if test.height == 0:
             continue
 
-        # Fit F_empty from training set only
-        train_mean = float(train.select(pl.col("mean_excess").mean()).item())
-        train_sd = float(train.select(pl.col("mean_excess").std()).item())
-        if np.isnan(train_sd) or train_sd < 1.0:
-            train_sd = 10.0
-        floor_train = train_mean + cfg.floor_multiplier * train_sd
+        # Fit empty-floor model from training empty blocks only
+        floor_model_train = _fit_empty_floor_model(train, cfg)
+        test_floor_center, _, _ = _predict_floor_from_model(
+            floor_model_train, test["carryover_mean_pred"].to_numpy().astype(np.float64)
+        )
 
         # Compute scale from occupied blocks (same as main estimator)
         occ_blocks = block_stats.filter(pl.col("room_occupied") == 1)
@@ -1795,37 +1992,60 @@ def validate_label0_temporal_split(
         one_minus_phi = max(1.0 - fit.phi_hat, 1e-6)
         fwf = _finite_window_factor(fit.phi_hat, block_duration)
         excess_ss_physics = (g_safe / one_minus_phi) * fwf
+        data_scale = None
         if occ_blocks.height >= 5 and train.height >= 3:
-            occ_median = float(occ_blocks.select(
-                pl.col("mean_excess").quantile(0.75)
-            ).item())
-            data_scale = max(occ_median - floor_train, 20.0)
+            occ_floor_center, _, _ = _predict_floor_from_model(
+                floor_model_train, occ_blocks["carryover_mean_pred"].to_numpy().astype(np.float64)
+            )
+            occ_calibrated = np.maximum(
+                occ_blocks["mean_excess"].to_numpy().astype(np.float64) - occ_floor_center, 0.0
+            )
+            data_scale = max(float(np.quantile(occ_calibrated, 0.75)), 20.0)
             excess_ss = 0.5 * data_scale + 0.5 * excess_ss_physics
         else:
             excess_ss = excess_ss_physics
 
         # Evaluate on test empty blocks
         test_excess = test["mean_excess"].to_numpy()
-        test_innov_sum = test["innovation_sum"].to_numpy()
-        cal_excess = np.maximum(test_excess - floor_train, 0.0)
+        test_n_pairs = test["n_innovation_pairs"].to_numpy().astype(np.float64)
+        phi_innov = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        test_innov_sum = (
+            test["innovation_curr_sum"].to_numpy().astype(np.float64)
+            - phi_innov * test["innovation_prev_sum"].to_numpy().astype(np.float64)
+        )
+        cal_excess = np.maximum(test_excess - test_floor_center, 0.0)
         occ_frac = np.clip(cal_excess / max(excess_ss, 1.0), 0.0, 1.0)
         minutes_oos = occ_frac * block_duration
-        minutes_oos = _apply_innovation_gate_and_cap(minutes_oos, test_innov_sum, fit.g_hat)
+        minutes_oos = _apply_innovation_gate_and_cap(
+            minutes_oos,
+            test_innov_sum,
+            test_n_pairs,
+            fit.g_hat,
+            fit.sigma_noise,
+        )
         oos_vals.extend(minutes_oos.tolist())
 
         # Also evaluate in-sample (for comparison)
         all_excess = empty_blocks["mean_excess"].to_numpy()
-        all_innov_sum = empty_blocks["innovation_sum"].to_numpy()
-        # Full-sample floor (mirrors main estimator)
-        full_mean = float(empty_blocks.select(pl.col("mean_excess").mean()).item())
-        full_sd = float(empty_blocks.select(pl.col("mean_excess").std()).item())
-        if np.isnan(full_sd) or full_sd < 1.0:
-            full_sd = 10.0
-        floor_full = full_mean + cfg.floor_multiplier * full_sd
-        cal_full = np.maximum(all_excess - floor_full, 0.0)
+        all_floor_model = _fit_empty_floor_model(empty_blocks, cfg)
+        all_floor_center, _, _ = _predict_floor_from_model(
+            all_floor_model, empty_blocks["carryover_mean_pred"].to_numpy().astype(np.float64)
+        )
+        all_n_pairs = empty_blocks["n_innovation_pairs"].to_numpy().astype(np.float64)
+        all_innov_sum = (
+            empty_blocks["innovation_curr_sum"].to_numpy().astype(np.float64)
+            - phi_innov * empty_blocks["innovation_prev_sum"].to_numpy().astype(np.float64)
+        )
+        cal_full = np.maximum(all_excess - all_floor_center, 0.0)
         occ_frac_full = np.clip(cal_full / max(excess_ss, 1.0), 0.0, 1.0)
         minutes_ins = occ_frac_full * block_duration
-        minutes_ins = _apply_innovation_gate_and_cap(minutes_ins, all_innov_sum, fit.g_hat)
+        minutes_ins = _apply_innovation_gate_and_cap(
+            minutes_ins,
+            all_innov_sum,
+            all_n_pairs,
+            fit.g_hat,
+            fit.sigma_noise,
+        )
         ins_vals.extend(minutes_ins.tolist())
 
         oos_stats_sensor = _robust_stats_from_minutes(minutes_oos)
@@ -2145,8 +2365,8 @@ def run_semisynthetic_validation(
     def _estimate_block_minutes_with_ci(
         excess_series: np.ndarray,
         fit_obj: SensorFit,
-        empty_floor_val: float,
-        empty_sd_val: float,
+        floor_model_obj: EmptyFloorModel,
+        carryover_pred: float,
         excess_ss_physics_val: float,
         data_scale_val: float | None,
     ) -> tuple[float, float, float, float]:
@@ -2155,29 +2375,39 @@ def run_semisynthetic_validation(
             return 0.0, 0.0, 0.0, 0.0
 
         phi_carry = float(np.clip(fit_obj.phi_hat + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
-        pre_excess = max(float(excess_series[0]), 0.0)
-        carry_series = pre_excess * (phi_carry ** np.arange(n_local))
-        excess_adj = np.maximum(excess_series - carry_series, 0.0)
-        mean_excess_adj = float(np.mean(excess_adj))
+        start_anchor = max(float(np.median(excess_series[: min(10, n_local)])), 0.0)
+        carry_mean = float(_carryover_mean(start_anchor, phi_carry, 0.0, float(n_local)))
+        mean_excess_adj = max(float(np.mean(excess_series)) - carry_mean, 0.0)
 
-        cal_excess = max(mean_excess_adj - empty_floor_val, 0.0)
+        floor_center_arr, floor_sd_arr, _ = _predict_floor_from_model(
+            floor_model_obj, np.array([carryover_pred], dtype=np.float64)
+        )
+        floor_center = float(floor_center_arr[0])
+        floor_sd = float(floor_sd_arr[0])
+        cal_excess = max(mean_excess_adj - floor_center, 0.0)
         if data_scale_val is not None:
             excess_ss_point = 0.5 * data_scale_val + 0.5 * excess_ss_physics_val
         else:
             excess_ss_point = excess_ss_physics_val
         minutes_point = float(np.clip(cal_excess / max(excess_ss_point, 1.0), 0.0, 1.0) * block_duration)
-        innov_sum = float(np.sum(excess_series[1:] - fit_obj.phi_hat * excess_series[:-1])) if n_local > 1 else 0.0
+        n_pairs = float(max(n_local - 1, 0))
+        prev_sum = float(np.sum(excess_series[:-1])) if n_local > 1 else 0.0
+        curr_sum = float(np.sum(excess_series[1:])) if n_local > 1 else 0.0
+        phi_innov = float(np.clip(fit_obj.phi_hat + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
+        innov_sum = curr_sum - phi_innov * prev_sum if n_local > 1 else 0.0
         minutes_point = float(_apply_innovation_gate_and_cap(
-            np.array([minutes_point]), np.array([innov_sum]), fit_obj.g_hat
+            np.array([minutes_point]), np.array([innov_sum]), np.array([n_pairs]),
+            fit_obj.g_hat, fit_obj.sigma_noise
         )[0])
 
         mc = np.zeros(cfg.n_mc_samples, dtype=np.float64)
         for s in range(cfg.n_mc_samples):
             phi_s = float(np.clip(rng.normal(fit_obj.phi_hat, fit_obj.phi_se), cfg.phi_min, cfg.phi_max))
             g_s = float(np.clip(rng.normal(fit_obj.g_hat, fit_obj.g_se), cfg.generation_min, cfg.generation_max))
-            floor_s = max(0.0, rng.normal(empty_floor_val, empty_sd_val * 0.5))
+            floor_s = max(0.0, rng.normal(floor_center, floor_sd * 0.5))
 
-            carry_mean_s = _carryover_mean(pre_excess, phi_s, 0.0, float(n_local))
+            phi_carry_s = float(np.clip(phi_s + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
+            carry_mean_s = _carryover_mean(start_anchor, phi_carry_s, 0.0, float(n_local))
             mean_excess_adj_s = max(float(np.mean(excess_series)) - float(carry_mean_s), 0.0)
             cal_excess_s = max(mean_excess_adj_s - floor_s, 0.0)
 
@@ -2190,9 +2420,11 @@ def run_semisynthetic_validation(
                 excess_ss_s = physics_scale_s
 
             min_s = float(np.clip(cal_excess_s / max(excess_ss_s, 1.0), 0.0, 1.0) * block_duration)
-            innov_sum_s = float(np.sum(excess_series[1:] - phi_s * excess_series[:-1])) if n_local > 1 else 0.0
+            phi_innov_s = float(np.clip(phi_s + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
+            innov_sum_s = curr_sum - phi_innov_s * prev_sum if n_local > 1 else 0.0
             min_s = float(_apply_innovation_gate_and_cap(
-                np.array([min_s]), np.array([innov_sum_s]), g_s
+                np.array([min_s]), np.array([innov_sum_s]), np.array([n_pairs]),
+                g_s, fit_obj.sigma_noise
             )[0])
             mc[s] = min_s
 
@@ -2217,16 +2449,18 @@ def run_semisynthetic_validation(
             pl.col("present").max().over(SENSOR_BLOCK_KEY_COLS).alias("room_occupied")
         )
 
-        # Get empty blocks with low residual excess
-        block_stats = (
+        co2_blocks = (
             arr_dedup
             .group_by(SENSOR_BLOCK_KEY_COLS)
             .agg([
-                pl.len().alias("data_minutes"),
-                pl.col("excess").mean().alias("mean_excess"),
-                pl.col("room_occupied").max().alias("room_occupied"),
                 pl.col("co2_smooth").to_physical().alias("co2_vals"),
             ])
+        )
+        block_stats_full = _build_sensor_block_stats(arr_dedup, fit, cfg).join(
+            co2_blocks, on=SENSOR_BLOCK_KEY_COLS, how="left"
+        )
+        block_stats = (
+            block_stats_full
             .filter(
                 (pl.col("room_occupied") == 0)
                 & (pl.col("data_minutes") >= 120)
@@ -2239,18 +2473,14 @@ def run_semisynthetic_validation(
             continue
 
         # Use the estimator's empty-room floor and scale for this sensor
-        all_block_stats = _build_sensor_block_stats(arr_dedup, fit, cfg)
+        all_block_stats = block_stats_full
         empty_all = all_block_stats.filter(pl.col("room_occupied") == 0)
         occ_all = all_block_stats.filter(pl.col("room_occupied") == 1)
 
         if empty_all.height < 3:
             continue
 
-        empty_mean_val = float(empty_all.select(pl.col("mean_excess").mean()).item())
-        empty_sd_val = float(empty_all.select(pl.col("mean_excess").std()).item())
-        if np.isnan(empty_sd_val) or empty_sd_val < 1.0:
-            empty_sd_val = 10.0
-        empty_floor = empty_mean_val + cfg.floor_multiplier * empty_sd_val
+        floor_model = _fit_empty_floor_model(empty_all, cfg)
 
         g_safe = max(fit.g_hat, 1e-6)
         one_minus_phi = max(1.0 - fit.phi_hat, 1e-6)
@@ -2258,10 +2488,13 @@ def run_semisynthetic_validation(
         excess_ss_physics = (g_safe / one_minus_phi) * fwf
         data_scale: float | None = None
         if occ_all.height >= 5:
-            occ_median = float(occ_all.select(
-                pl.col("mean_excess").quantile(0.75)
-            ).item())
-            data_scale = max(occ_median - empty_floor, 20.0)
+            occ_floor_center, _, _ = _predict_floor_from_model(
+                floor_model, occ_all["carryover_mean_pred"].to_numpy().astype(np.float64)
+            )
+            occ_calibrated = np.maximum(
+                occ_all["mean_excess"].to_numpy().astype(np.float64) - occ_floor_center, 0.0
+            )
+            data_scale = max(float(np.quantile(occ_calibrated, 0.75)), 20.0)
 
         # Process up to 5 empty blocks per sensor
         for row_idx in range(min(block_stats.height, 5)):
@@ -2309,7 +2542,8 @@ def run_semisynthetic_validation(
 
                 excess_synth = np.maximum(co2_synth - fit.baseline, 0.0)
                 estimated_minutes, p10, p90, mc_mean = _estimate_block_minutes_with_ci(
-                    excess_synth, fit, empty_floor, empty_sd_val, excess_ss_physics, data_scale
+                    excess_synth, fit, floor_model, float(row["carryover_mean_pred"]),
+                    excess_ss_physics, data_scale
                 )
 
                 actual_occ_minutes = float(np.sum(occ_mask))
@@ -2371,7 +2605,8 @@ def run_semisynthetic_validation(
 
                 excess_stress = np.maximum(co2_stress - fit.baseline, 0.0)
                 estimated_stress, p10_stress, p90_stress, mc_mean_stress = _estimate_block_minutes_with_ci(
-                    excess_stress, fit, empty_floor, empty_sd_val, excess_ss_physics, data_scale
+                    excess_stress, fit, floor_model, float(row["carryover_mean_pred"]),
+                    excess_ss_physics, data_scale
                 )
                 actual_stress = float(np.sum(occ_mask_stress))
                 coverage80 = 1 if (p10_stress <= actual_stress <= p90_stress) else 0

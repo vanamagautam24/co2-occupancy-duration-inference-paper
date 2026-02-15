@@ -66,27 +66,27 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 
 | Metric | Value | Criterion | Pass |
 |---|---:|---:|:---:|
-| C1 in-sample mean unclamped (label=0) | 14.71 min | < 15 | YES |
-| C2 in-sample % under 5 min | 84.5% | > 60% | YES |
-| C1-OOS mean unclamped (label=0) | 22.94 min | < 20 | NO |
-| C2-OOS % under 5 min | 75.4% | > 50% | YES |
+| C1 in-sample mean unclamped (label=0) | 11.19 min | < 15 | YES |
+| C2 in-sample % under 5 min | 80.3% | > 60% | YES |
+| C1-OOS mean unclamped (label=0) | 19.54 min | < 20 | YES |
+| C2-OOS % under 5 min | 77.2% | > 50% | YES |
 | C1-OOS median unclamped | 0.00 min | report | NA |
-| C1-OOS 5% trimmed mean | 15.71 min | report | NA |
-| C1-OOS tail contribution (top 5%) | 49.9% | report | NA |
-| E1 LOO mean relative MAE | 1.49 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.279 | > 0.2 | YES |
-| E3 max phi sensitivity change | 26.2% | < 200% | YES |
-| E4 high-confidence blocks | 44.5% | > 40% | YES |
+| C1-OOS 5% trimmed mean | 12.08 min | report | NA |
+| C1-OOS tail contribution (top 5%) | 53.3% | report | NA |
+| E1 LOO mean relative MAE | 1.40 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.314 | > 0.2 | YES |
+| E3 max phi sensitivity change | 76.5% | < 200% | YES |
+| E4 high-confidence blocks | 49.5% | > 40% | YES |
 
 ## Semisynthetic CI Coverage (Latest Run)
 Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
 
 | Group | Coverage (80% CI) | Mean CI Width | MAE |
 |---|---:|---:|---:|
-| Continuous | 60.4% | 73.8 min | 42.8 min |
-| Fragmented | 72.7% | 89.7 min | 55.6 min |
-| Stress | 61.8% | 109.5 min | 60.7 min |
-| Overall | 63.1% | 91.6 min | 52.6 min |
+| Continuous | 56.8% | 57.3 min | 44.5 min |
+| Fragmented | 51.9% | 83.4 min | 54.9 min |
+| Stress | 53.1% | 75.4 min | 45.3 min |
+| Overall | 54.4% | 69.4 min | 46.6 min |
 
 ## Baseline Comparator Note
 Source: `research_outputs/tables/table07_baseline_comparators.csv`

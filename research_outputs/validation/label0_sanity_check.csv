@@ -1,9 +1,9 @@
 metric,value
 n_blocks,239.0
-mean_unclamped_minutes,14.710630099779529
+mean_unclamped_minutes,11.191041282692973
 median_unclamped_minutes,0.0
-p95_unclamped_minutes,100.85074211780815
+p95_unclamped_minutes,68.14905619355123
 max_unclamped_minutes,240.0
-pct_under_5min,84.51882845188284
-pct_under_10min,84.51882845188284
-pct_exactly_0,82.84518828451883
+pct_under_5min,80.3347280334728
+pct_under_10min,82.42677824267783
+pct_exactly_0,79.07949790794979
