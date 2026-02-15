@@ -1,0 +1,189 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\emailauthor{gautam@university.edu}{Gautam~Author\corref {cor1}}
+\Newlabel{cor1}{1}
+\citation{frontczak2012literature}
+\citation{daisey2003indoor,fisk2017association}
+\citation{yan2015occupant,dong2018modeling}
+\Newlabel{cript}{a}
+\citation{candanedo2016accurate,jin2018virtual,chen2018building}
+\citation{yang2014systematic}
+\citation{masood2019occupancy,chen2020environmental,tekler2020occupancy}
+\citation{ebadat2015estimation,wang2018inferring}
+\citation{persily2017carbon}
+\citation{ashrae2022standard}
+\citation{lu2010design}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{2}{section.1}\protected@file@percent }
+\newlabel{sec:introduction}{{1}{2}{Introduction}{section.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Methods}{3}{section.2}\protected@file@percent }
+\newlabel{sec:methods}{{2}{3}{Methods}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Study design and data collection}{3}{subsection.2.1}\protected@file@percent }
+\newlabel{sec:study_design}{{2.1}{3}{Study design and data collection}{subsection.2.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.1}CO\textsubscript  {2} monitoring}{3}{subsubsection.2.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.2}Occupancy ground truth}{3}{subsubsection.2.1.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Overview of the proposed method. CO\textsubscript  {2} time series and block-level occupancy labels are processed through four stages: (1) per-sensor AR(1) parameter fitting, (2) empty-room calibration, (3) block-level excess-to-duration conversion, and (4) Monte Carlo uncertainty quantification. The output is an estimated number of occupied minutes per four-hour block with an 80\% credible interval.}}{4}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:method_overview}{{1}{4}{Overview of the proposed method. CO\textsubscript {2} time series and block-level occupancy labels are processed through four stages: (1) per-sensor AR(1) parameter fitting, (2) empty-room calibration, (3) block-level excess-to-duration conversion, and (4) Monte Carlo uncertainty quantification. The output is an estimated number of occupied minutes per four-hour block with an 80\% credible interval}{figure.caption.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.3}Dataset summary}{5}{subsubsection.2.1.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Dataset summary statistics.}}{5}{table.caption.2}\protected@file@percent }
+\newlabel{tab:data_summary}{{1}{5}{Dataset summary statistics}{table.caption.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}CO\textsubscript  {2} dynamics model}{5}{subsection.2.2}\protected@file@percent }
+\newlabel{sec:co2_model}{{2.2}{5}{CO\textsubscript {2} dynamics model}{subsection.2.2}{}}
+\newlabel{eq:excess}{{1}{5}{CO\textsubscript {2} dynamics model}{equation.2.1}{}}
+\newlabel{eq:ar1}{{2}{5}{CO\textsubscript {2} dynamics model}{equation.2.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}Physical interpretation of model parameters}{6}{subsubsection.2.2.1}\protected@file@percent }
+\newlabel{eq:steady_state}{{3}{6}{Physical interpretation of model parameters}{equation.2.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}Baseline estimation}{6}{subsubsection.2.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Parameter estimation}{6}{subsection.2.3}\protected@file@percent }
+\newlabel{sec:param_estimation}{{2.3}{6}{Parameter estimation}{subsection.2.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.1}Room-level occupancy labels for shared rooms}{6}{subsubsection.2.3.1}\protected@file@percent }
+\newlabel{eq:room_present}{{4}{6}{Room-level occupancy labels for shared rooms}{equation.2.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.2}Decay parameter ($\phi $)}{7}{subsubsection.2.3.2}\protected@file@percent }
+\newlabel{eq:phi_ols}{{5}{7}{Decay parameter ($\phi $)}{equation.2.5}{}}
+\newlabel{eq:phi_se}{{6}{7}{Decay parameter ($\phi $)}{equation.2.6}{}}
+\newlabel{eq:phi_shrinkage}{{7}{7}{Decay parameter ($\phi $)}{equation.2.7}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.3}Generation rate ($g$)}{7}{subsubsection.2.3.3}\protected@file@percent }
+\newlabel{eq:g_hat}{{8}{7}{Generation rate ($g$)}{equation.2.8}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.4}Innovation noise ($\sigma _\varepsilon $)}{7}{subsubsection.2.3.4}\protected@file@percent }
+\newlabel{eq:sigma_noise}{{9}{7}{Innovation noise ($\sigma _\varepsilon $)}{equation.2.9}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.5}Fallback parameter rules}{8}{subsubsection.2.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Block-level excess estimation}{8}{subsection.2.4}\protected@file@percent }
+\newlabel{sec:block_estimation}{{2.4}{8}{Block-level excess estimation}{subsection.2.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}Per-sensor empty-room calibration}{8}{subsubsection.2.4.1}\protected@file@percent }
+\newlabel{eq:empty_floor}{{10}{8}{Per-sensor empty-room calibration}{equation.2.10}{}}
+\@writefile{toc}{\contentsline {paragraph}{Selection of floor multiplier ($k$).}{8}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Self-normalizing scale}{9}{subsubsection.2.4.2}\protected@file@percent }
+\newlabel{eq:finite_window}{{11}{9}{Self-normalizing scale}{equation.2.11}{}}
+\newlabel{eq:scale}{{12}{9}{Self-normalizing scale}{equation.2.12}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.3}Occupied minutes estimation}{9}{subsubsection.2.4.3}\protected@file@percent }
+\newlabel{eq:cal_excess}{{13}{9}{Occupied minutes estimation}{equation.2.13}{}}
+\newlabel{eq:occ_fraction}{{14}{9}{Occupied minutes estimation}{equation.2.14}{}}
+\newlabel{eq:minutes}{{15}{9}{Occupied minutes estimation}{equation.2.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}Monte Carlo uncertainty quantification}{9}{subsection.2.5}\protected@file@percent }
+\newlabel{sec:mc_uncertainty}{{2.5}{9}{Monte Carlo uncertainty quantification}{subsection.2.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Estimation pipeline for a single four-hour block. Raw CO\textsubscript  {2} is converted to excess above baseline, averaged over the block, calibrated against the per-sensor empty-room floor, normalized by the blended scale $S$, and converted to occupied minutes.}}{10}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:estimation_pipeline}{{2}{10}{Estimation pipeline for a single four-hour block. Raw CO\textsubscript {2} is converted to excess above baseline, averaged over the block, calibrated against the per-sensor empty-room floor, normalized by the blended scale $S$, and converted to occupied minutes}{figure.caption.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Illustration of the CO\textsubscript  {2} dynamics model and block-level estimation. The top panel shows the CO\textsubscript  {2} time series with excess above baseline. The estimation procedure computes mean excess per block, subtracts the per-sensor empty-room floor, and normalizes by the blended scale $S$ to obtain occupied fraction.}}{10}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:physics_illustration}{{3}{10}{Illustration of the CO\textsubscript {2} dynamics model and block-level estimation. The top panel shows the CO\textsubscript {2} time series with excess above baseline. The estimation procedure computes mean excess per block, subtracts the per-sensor empty-room floor, and normalizes by the blended scale $S$ to obtain occupied fraction}{figure.caption.5}{}}
+\newlabel{eq:uncertainty_width}{{19}{11}{Monte Carlo uncertainty quantification}{equation.2.19}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.6}Validation framework}{11}{subsection.2.6}\protected@file@percent }
+\newlabel{sec:validation}{{2.6}{11}{Validation framework}{subsection.2.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.6.1}Calibration diagnostics (C1--C2)}{11}{subsubsection.2.6.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Validation framework organized into calibration diagnostics (C1--C2, green) and independent evaluation criteria (E1--E4, blue). C1--C2 were used to select the floor multiplier $k$ and are therefore in-sample by construction. E1--E4 test cross-sensor generalizability, parameter robustness, and uncertainty informativeness independently of the calibration.}}{12}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:validation_framework}{{4}{12}{Validation framework organized into calibration diagnostics (C1--C2, green) and independent evaluation criteria (E1--E4, blue). C1--C2 were used to select the floor multiplier $k$ and are therefore in-sample by construction. E1--E4 test cross-sensor generalizability, parameter robustness, and uncertainty informativeness independently of the calibration}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.6.2}Independent evaluation criteria (E1--E4)}{12}{subsubsection.2.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.6.3}Out-of-sample temporal split}{12}{subsubsection.2.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.6.4}Baseline comparators}{13}{subsubsection.2.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.6.5}Semisynthetic validation}{13}{subsubsection.2.6.5}\protected@file@percent }
+\newlabel{sec:semisynthetic_methods}{{2.6.5}{13}{Semisynthetic validation}{subsubsection.2.6.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Results}{14}{section.3}\protected@file@percent }
+\newlabel{sec:results}{{3}{14}{Results}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Sensor physics parameters}{14}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:sensor_params}{{3.1}{14}{Sensor physics parameters}{subsection.3.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Fitted AR(1) model parameters for each sensor. $C_b$: baseline CO\textsubscript  {2} concentration; $\hat  {\phi }$: decay parameter; $\hat  {g}$: generation rate; $\hat  {\sigma }_\varepsilon $: innovation noise standard deviation; $n_\text  {decay}$: number of valid decay observations; Fallback: parameters using prior defaults instead of sensor-specific fits.}}{14}{table.caption.7}\protected@file@percent }
+\newlabel{tab:sensor_params}{{2}{14}{Fitted AR(1) model parameters for each sensor. $C_b$: baseline CO\textsubscript {2} concentration; $\hat {\phi }$: decay parameter; $\hat {g}$: generation rate; $\hat {\sigma }_\varepsilon $: innovation noise standard deviation; $n_\text {decay}$: number of valid decay observations; Fallback: parameters using prior defaults instead of sensor-specific fits}{table.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Distribution of fitted sensor physics parameters across the 12 monitored rooms.}}{14}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:sensor_params}{{5}{14}{Distribution of fitted sensor physics parameters across the 12 monitored rooms}{figure.caption.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Block-level duration estimates}{15}{subsection.3.2}\protected@file@percent }
+\newlabel{sec:block_results}{{3.2}{15}{Block-level duration estimates}{subsection.3.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Block-level duration estimates by occupancy label. Label = 0 values are \emph  {unclamped} (not forced to zero); for downstream use they are clamped. All values in minutes (out of 240-minute blocks). $n$: number of blocks; uncertainty refers to the width of the 80\% credible interval.}}{15}{table.caption.9}\protected@file@percent }
+\newlabel{tab:block_summary}{{3}{15}{Block-level duration estimates by occupancy label. Label = 0 values are \emph {unclamped} (not forced to zero); for downstream use they are clamped. All values in minutes (out of 240-minute blocks). $n$: number of blocks; uncertainty refers to the width of the 80\% credible interval}{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Time-of-day patterns}{15}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:time_of_day}{{3.3}{15}{Time-of-day patterns}{subsection.3.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}CO\textsubscript  {2} trace examples}{15}{subsection.3.4}\protected@file@percent }
+\newlabel{sec:trace_examples}{{3.4}{15}{CO\textsubscript {2} trace examples}{subsection.3.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Distribution of estimated occupancy duration by label. Label = 0 blocks cluster at zero minutes. Label = 1 blocks show a right-skewed distribution with many low-duration blocks and a tail extending to 240 minutes.}}{16}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:histogram}{{6}{16}{Distribution of estimated occupancy duration by label. Label = 0 blocks cluster at zero minutes. Label = 1 blocks show a right-skewed distribution with many low-duration blocks and a tail extending to 240 minutes}{figure.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Estimated occupancy duration by time-of-day block. Error bars show the interquartile range across subjects. The overnight block (22:00--02:00) shows the highest occupancy, while midday blocks show the lowest, consistent with university student schedules.}}{16}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:time_of_day}{{7}{16}{Estimated occupancy duration by time-of-day block. Error bars show the interquartile range across subjects. The overnight block (22:00--02:00) shows the highest occupancy, while midday blocks show the lowest, consistent with university student schedules}{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Representative CO\textsubscript  {2} time series for selected sensors. Shaded regions indicate four-hour blocks labeled as present (label = 1). The exponential decay after occupancy departure and the rise during presence illustrate the AR(1) dynamics captured by the model.}}{17}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:traces}{{8}{17}{Representative CO\textsubscript {2} time series for selected sensors. Shaded regions indicate four-hour blocks labeled as present (label = 1). The exponential decay after occupancy departure and the rise during presence illustrate the AR(1) dynamics captured by the model}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Validation results}{17}{subsection.3.5}\protected@file@percent }
+\newlabel{sec:validation_results}{{3.5}{17}{Validation results}{subsection.3.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.5.1}Label = 0 sanity check}{17}{subsubsection.3.5.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Validation results. Calibration diagnostics (C1--C2) are met by construction; all four independent evaluation criteria (E1--E4) are satisfied. Out-of-sample C1-OOS exceeds its criterion.}}{18}{table.caption.13}\protected@file@percent }
+\newlabel{tab:validation}{{4}{18}{Validation results. Calibration diagnostics (C1--C2) are met by construction; all four independent evaluation criteria (E1--E4) are satisfied. Out-of-sample C1-OOS exceeds its criterion}{table.caption.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Distribution of unclamped estimated duration for known-empty (label = 0) blocks. The majority cluster at or near zero, with a tail of false positives from blocks where residual CO\textsubscript  {2} from prior occupancy exceeds the per-sensor empty-room floor.}}{18}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:label0_validation}{{9}{18}{Distribution of unclamped estimated duration for known-empty (label = 0) blocks. The majority cluster at or near zero, with a tail of false positives from blocks where residual CO\textsubscript {2} from prior occupancy exceeds the per-sensor empty-room floor}{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.5.2}Leave-one-sensor-out cross-validation}{19}{subsubsection.3.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Leave-one-sensor-out cross-validation results. $\hat  {\phi }_\text  {own}$, $\hat  {g}_\text  {own}$: sensor-specific parameters; $\hat  {\phi }_\text  {cross}$, $\hat  {g}_\text  {cross}$: median of remaining sensors; MAE: mean absolute error (minutes); Rel.\ MAE: relative MAE (ratio); $\rho $: Spearman rank correlation between own and cross estimates.}}{19}{table.caption.15}\protected@file@percent }
+\newlabel{tab:loo}{{5}{19}{Leave-one-sensor-out cross-validation results. $\hat {\phi }_\text {own}$, $\hat {g}_\text {own}$: sensor-specific parameters; $\hat {\phi }_\text {cross}$, $\hat {g}_\text {cross}$: median of remaining sensors; MAE: mean absolute error (minutes); Rel.\ MAE: relative MAE (ratio); $\rho $: Spearman rank correlation between own and cross estimates}{table.caption.15}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.5.3}Sensitivity analysis}{19}{subsubsection.3.5.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Sensitivity of estimated occupancy duration to the decay parameter $\phi $. Mean and median estimated duration (across all label = 1 blocks) are shown for each $\phi $ value. The smooth, monotonic response indicates robust behavior without discontinuities or instabilities.}}{20}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:sensitivity_phi}{{10}{20}{Sensitivity of estimated occupancy duration to the decay parameter $\phi $. Mean and median estimated duration (across all label = 1 blocks) are shown for each $\phi $ value. The smooth, monotonic response indicates robust behavior without discontinuities or instabilities}{figure.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Uncertainty analysis}{20}{subsection.3.6}\protected@file@percent }
+\newlabel{sec:uncertainty_results}{{3.6}{20}{Uncertainty analysis}{subsection.3.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.7}Individual subject profiles}{20}{subsection.3.7}\protected@file@percent }
+\newlabel{sec:individual}{{3.7}{20}{Individual subject profiles}{subsection.3.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Sensitivity of estimated occupancy duration to the generation rate multiplier. Multipliers of $0.5\times $ to $2.0\times $ are applied to each sensor's fitted $\hat  {g}$.}}{21}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:sensitivity_gen}{{11}{21}{Sensitivity of estimated occupancy duration to the generation rate multiplier. Multipliers of $0.5\times $ to $2.0\times $ are applied to each sensor's fitted $\hat {g}$}{figure.caption.17}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Uncertainty analysis of block-level duration estimates. Distribution of 80\% credible interval widths across all occupied (label = 1) blocks.}}{21}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:uncertainty}{{12}{21}{Uncertainty analysis of block-level duration estimates. Distribution of 80\% credible interval widths across all occupied (label = 1) blocks}{figure.caption.18}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Participant-level occupancy summary for single-occupancy rooms (18 participants, 9 sensors). Each sensor monitors one room; two study participants per room provided independent self-reported presence schedules. The CO\textsubscript  {2}-based duration estimate is computed at the room level, so differences between participants on the same sensor arise solely from different self-reported presence patterns, not from distinct CO\textsubscript  {2} signals. Mean, median, and standard deviation of daily estimated room occupancy (minutes per day). P10 and P90 are the mean daily 10th and 90th percentile estimates from the Monte Carlo uncertainty propagation.}}{22}{table.caption.19}\protected@file@percent }
+\newlabel{tab:subject_summary}{{6}{22}{Participant-level occupancy summary for single-occupancy rooms (18 participants, 9 sensors). Each sensor monitors one room; two study participants per room provided independent self-reported presence schedules. The CO\textsubscript {2}-based duration estimate is computed at the room level, so differences between participants on the same sensor arise solely from different self-reported presence patterns, not from distinct CO\textsubscript {2} signals. Mean, median, and standard deviation of daily estimated room occupancy (minutes per day). P10 and P90 are the mean daily 10th and 90th percentile estimates from the Monte Carlo uncertainty propagation}{table.caption.19}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Room-level occupancy for shared rooms (3 sensors, 6 subjects). Values reflect combined room occupancy and cannot be attributed to individual occupants.}}{22}{table.caption.20}\protected@file@percent }
+\newlabel{tab:shared_room_summary}{{7}{22}{Room-level occupancy for shared rooms (3 sensors, 6 subjects). Values reflect combined room occupancy and cannot be attributed to individual occupants}{table.caption.20}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {13}{\ignorespaces Individual subject daily occupancy profiles for selected subjects. Each bar represents estimated room occupancy for one day, with error bars showing the 80\% credible interval. The diversity of patterns reflects different student lifestyles, from near-full-time room dwellers (top) to rarely present occupants (bottom).}}{23}{figure.caption.21}\protected@file@percent }
+\newlabel{fig:individual_profiles}{{13}{23}{Individual subject daily occupancy profiles for selected subjects. Each bar represents estimated room occupancy for one day, with error bars showing the 80\% credible interval. The diversity of patterns reflects different student lifestyles, from near-full-time room dwellers (top) to rarely present occupants (bottom)}{figure.caption.21}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.8}Shared vs.\ single-occupancy rooms}{24}{subsection.3.8}\protected@file@percent }
+\newlabel{sec:shared_vs_single}{{3.8}{24}{Shared vs.\ single-occupancy rooms}{subsection.3.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Comparison of block-level estimates between shared and single-occupancy rooms (label = 1 blocks only).}}{24}{table.caption.22}\protected@file@percent }
+\newlabel{tab:shared_vs_single}{{8}{24}{Comparison of block-level estimates between shared and single-occupancy rooms (label = 1 blocks only)}{table.caption.22}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.9}Daily heatmap}{24}{subsection.3.9}\protected@file@percent }
+\newlabel{sec:heatmap}{{3.9}{24}{Daily heatmap}{subsection.3.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Discussion}{24}{section.4}\protected@file@percent }
+\newlabel{sec:discussion}{{4}{24}{Discussion}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Out-of-sample empty-room calibration}{24}{subsection.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {14}{\ignorespaces Heatmap of estimated daily room occupancy (minutes) across subjects and days. Darker colors indicate higher estimated occupancy. Missing data (days without CO\textsubscript  {2} records or occupancy labels) appear as gaps.}}{25}{figure.caption.23}\protected@file@percent }
+\newlabel{fig:heatmap}{{14}{25}{Heatmap of estimated daily room occupancy (minutes) across subjects and days. Darker colors indicate higher estimated occupancy. Missing data (days without CO\textsubscript {2} records or occupancy labels) appear as gaps}{figure.caption.23}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Comparison with baseline methods}{26}{subsection.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {15}{\ignorespaces Comparison of duration estimation methods on empty-room specificity. (a)~C1: mean estimated minutes for known-empty blocks (lower is better). (b)~C2: percentage of empty blocks estimating under \SI {5}{min} (higher is better). (c)~Mean estimated minutes for occupied blocks. The block-excess method achieves the calibration targets for empty-room specificity; baselines illustrate the trade-offs of simpler heuristics.}}{26}{figure.caption.24}\protected@file@percent }
+\newlabel{fig:baseline_comparison}{{15}{26}{Comparison of duration estimation methods on empty-room specificity. (a)~C1: mean estimated minutes for known-empty blocks (lower is better). (b)~C2: percentage of empty blocks estimating under \SI {5}{min} (higher is better). (c)~Mean estimated minutes for occupied blocks. The block-excess method achieves the calibration targets for empty-room specificity; baselines illustrate the trade-offs of simpler heuristics}{figure.caption.24}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Semisynthetic validation}{26}{subsection.4.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {16}{\ignorespaces Semisynthetic validation results. (a)~Scatter plot of estimated vs.\ true injected occupied minutes. Continuous scenarios (circles) cluster closer to the identity line than fragmented scenarios (triangles). (b)~Distribution of absolute estimation error by true duration level.}}{27}{figure.caption.25}\protected@file@percent }
+\newlabel{fig:semisynthetic}{{16}{27}{Semisynthetic validation results. (a)~Scatter plot of estimated vs.\ true injected occupied minutes. Continuous scenarios (circles) cluster closer to the identity line than fragmented scenarios (triangles). (b)~Distribution of absolute estimation error by true duration level}{figure.caption.25}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Semisynthetic validation accuracy by scenario. MAE: mean absolute error; Bias: mean signed error (positive = overestimation); P90: 90th percentile of absolute error. All values in minutes. Stress tests inject with parameters that differ from those used by the estimator.}}{27}{table.caption.26}\protected@file@percent }
+\newlabel{tab:semisynthetic_summary}{{9}{27}{Semisynthetic validation accuracy by scenario. MAE: mean absolute error; Bias: mean signed error (positive = overestimation); P90: 90th percentile of absolute error. All values in minutes. Stress tests inject with parameters that differ from those used by the estimator}{table.caption.26}{}}
+\citation{tibshirani2005sparsity}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Strengths of the approach}{28}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Limitations}{28}{subsection.4.5}\protected@file@percent }
+\citation{candanedo2016accurate}
+\citation{chen2018building}
+\citation{jin2018virtual}
+\citation{chen2020environmental,tekler2020occupancy}
+\citation{ebadat2015estimation}
+\citation{wang2018inferring}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}Comparison to literature}{29}{subsection.4.6}\protected@file@percent }
+\citation{persily2006indoor,li2021co2,cali2015co2}
+\citation{szczurek2017co2}
+\citation{wilke2013probabilistic,richardson2010domestic}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusions}{30}{section.5}\protected@file@percent }
+\newlabel{sec:conclusions}{{5}{30}{Conclusions}{section.5}{}}
+\bibcite{frontczak2012literature}{{1}{}{{}}{{}}}
+\bibcite{daisey2003indoor}{{2}{}{{}}{{}}}
+\bibcite{fisk2017association}{{3}{}{{}}{{}}}
+\bibcite{yan2015occupant}{{4}{}{{}}{{}}}
+\bibcite{dong2018modeling}{{5}{}{{}}{{}}}
+\bibcite{candanedo2016accurate}{{6}{}{{}}{{}}}
+\bibcite{jin2018virtual}{{7}{}{{}}{{}}}
+\bibcite{chen2018building}{{8}{}{{}}{{}}}
+\bibcite{yang2014systematic}{{9}{}{{}}{{}}}
+\bibcite{masood2019occupancy}{{10}{}{{}}{{}}}
+\bibcite{chen2020environmental}{{11}{}{{}}{{}}}
+\bibcite{tekler2020occupancy}{{12}{}{{}}{{}}}
+\bibcite{ebadat2015estimation}{{13}{}{{}}{{}}}
+\bibcite{wang2018inferring}{{14}{}{{}}{{}}}
+\bibcite{persily2017carbon}{{15}{}{{}}{{}}}
+\bibcite{ashrae2022standard}{{16}{}{{}}{{}}}
+\bibcite{lu2010design}{{17}{}{{}}{{}}}
+\bibcite{tibshirani2005sparsity}{{18}{}{{}}{{}}}
+\bibcite{persily2006indoor}{{19}{}{{}}{{}}}
+\bibcite{li2021co2}{{20}{}{{}}{{}}}
+\bibcite{cali2015co2}{{21}{}{{}}{{}}}
+\bibcite{szczurek2017co2}{{22}{}{{}}{{}}}
+\bibcite{wilke2013probabilistic}{{23}{}{{}}{{}}}
+\bibcite{richardson2010domestic}{{24}{}{{}}{{}}}
+\providecommand\NAT@force@numbers{}\NAT@force@numbers
+\gdef \@abspage@last{33}

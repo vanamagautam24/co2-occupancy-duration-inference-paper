@@ -1,0 +1,9 @@
+test,value,criterion,pass,interpretation
+V1: Label=0 mean unclamped minutes (in-sample),14.85,< 15,YES,Model correctly identifies empty rooms from CO2
+V2: Label=0 % under 5 min (in-sample),85.4,> 60%,YES,Majority of absent blocks produce near-zero estimates
+V1-OOS: Label=0 mean unclamped minutes (out-of-sample),46.05,< 20,NO,Temporal-split calibration degrades with limited training data
+V2-OOS: Label=0 % under 5 min (out-of-sample),61.4,> 50%,YES,Majority of held-out absent blocks produce near-zero estimates
+V3: LOO mean relative MAE,1.11,< 1.5,YES,Cross-sensor parameter estimates within 150% of sensor-specific
+V4: LOO mean Spearman rank correlation,0.313,> 0.2,YES,Block rank ordering preserved with cross-sensor parameters
+V5: Max phi sensitivity (% change),30.7,< 200%,YES,Estimates change smoothly with decay parameter
+V6: % blocks with high confidence,50.7,> 40%,YES,Substantial fraction of estimates have tight uncertainty

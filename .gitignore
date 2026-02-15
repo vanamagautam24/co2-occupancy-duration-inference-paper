@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Local envs
+.venv/
+.env
+
+# OS/editor
+.DS_Store
+*.log
+
+# Raw data (not included)
+CO2/
+data/
+gf2-y2-dailyoccupancy-updated.csv

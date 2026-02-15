@@ -1,0 +1,6 @@
+metric,in_sample,out_of_sample
+n_blocks,174.0,57.0
+mean_unclamped_minutes,14.16595864605344,46.047380851191605
+median_unclamped_minutes,0.0,0.0
+pct_under_5min,83.33333333333334,61.40350877192983
+pct_under_10min,84.48275862068965,61.40350877192983

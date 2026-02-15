@@ -1,0 +1,68 @@
+# CO2 Occupancy Duration Inference - Research Configuration
+# All parameters documented with physical rationale
+
+[paths]
+co2_root = "CO2"
+building_key_csv = "CO2/building_key_redcap.csv"
+occupancy_csv = "gf2-y2-dailyoccupancy-updated.csv"
+subject_sensor_map_csv = "data/subject_sensor_map_from_infections_spring2025.csv"
+output_dir = "research_outputs"
+
+[model]
+# 4-hour occupancy blocks (2-6, 6-10, 10-14, 14-18, 18-22, 22-2)
+block_hours = 4
+
+# Rolling median window for CO2 smoothing (minutes)
+# 5 min removes sensor noise spikes without distorting occupancy transitions
+smoothing_window_minutes = 5
+
+# Baseline CO2: legacy parameter (not used by current pipeline).
+# The pipeline uses the 1st percentile of ALL sensor data as baseline.
+baseline_quantile = 0.01
+
+# AR(1) decay rate defaults and bounds
+# phi ~ 0.97 means ~3% of excess CO2 dissipates per minute
+# Physically: air exchange rate of ~0.03/min ≈ 1.8 ACH (typical dorm room)
+phi_default = 0.97
+phi_min = 0.85
+phi_max = 0.995
+
+# CO2 generation rate estimation
+# Quantile of positive innovations during occupied periods
+# 80th percentile is robust to brief absences within label=1 blocks
+generation_quantile = 0.80
+
+# Default generation rates (ppm/min per person) by room type
+# ~10-18 ppm/min corresponds to ~0.005 L/s CO2 in a ~30-40 m³ dorm room
+generation_default = 12.0
+generation_single = 10.0
+generation_shared = 18.0
+generation_min = 1.0
+generation_max = 60.0
+
+# Minimum data quality thresholds
+min_data_minutes_per_block = 30
+min_minutes_if_present = 5.0
+
+# Estimator choice: "block_excess" (current) or "fused_lasso" (deconvolution)
+estimator = "block_excess"
+
+# Empty-room floor multiplier: F_empty = mean(empty) + k * sd(empty)
+# Controls the boundary between "residual CO2" and "occupancy signal".
+# Higher k → more aggressive suppression of empty-block false positives,
+# at the cost of reduced sensitivity to brief occupancy.
+floor_multiplier = 0.86
+
+# Fused lasso ADMM parameters (only used when estimator = "fused_lasso")
+fused_lasso_admm_rho = 1.0
+fused_lasso_admm_max_iter = 100
+fused_lasso_admm_tol = 1e-4
+
+[research]
+n_mc_samples = 200
+seed = 42
+share_alpha = 24.0
+figure_dpi = 300
+figure_format = "pdf"
+sensitivity_phi_values = [0.90, 0.92, 0.94, 0.96, 0.97, 0.98, 0.99]
+sensitivity_gen_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]

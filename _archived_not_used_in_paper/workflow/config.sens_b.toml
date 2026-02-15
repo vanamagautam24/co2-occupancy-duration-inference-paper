@@ -1,0 +1,22 @@
+[paths]
+co2_root = "CO2"
+building_key_csv = "CO2/building_key_redcap.csv"
+occupancy_csv = "gf2-y2-dailyoccupancy-updated.csv"
+subject_sensor_map_csv = ""
+output_dir = "outputs"
+
+[model]
+block_hours = 4
+smoothing_window_minutes = 9
+baseline_quantile = 0.2
+phi_default = 0.97
+phi_min = 0.85
+phi_max = 0.999
+generation_quantile = 0.9
+generation_default = 12.0
+generation_single = 10.0
+generation_shared = 18.0
+generation_min = 1.0
+generation_max = 60.0
+min_data_minutes_per_block = 30
+min_minutes_if_present = 10.0
