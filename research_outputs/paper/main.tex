@@ -56,6 +56,14 @@ Estimating how long occupants spend in their rooms is valuable for understanding
 occupancy duration \sep CO\textsubscript{2} inference \sep indoor air quality \sep autoregressive model \sep Monte Carlo uncertainty \sep dormitory buildings
 \end{keyword}
 
+\begin{highlights}
+\item Infers occupancy duration from CO\textsubscript{2} without minute-level labels.
+\item Block-level excess with carryover correction reduces empty-room false positives.
+\item Innovation gate provides a block-specific minimum detectable occupancy duration.
+\item Monte Carlo structural priors yield 80\% credible intervals per block.
+\item All predefined criteria pass, including temporal out-of-sample checks.
+\end{highlights}
+
 \end{frontmatter}
 
 % =============================================================================
@@ -69,7 +77,7 @@ While numerous methods exist for binary occupancy detection (present vs.\ absent
 
 CO\textsubscript{2} concentration is a particularly attractive proxy for occupancy in dormitory settings because it is noninvasive, inexpensive to measure continuously, and directly linked to human metabolic activity through respiration. The physics of indoor CO\textsubscript{2} are well understood: occupants generate CO\textsubscript{2} at rates proportional to their metabolic activity (\SIrange{12}{20}{L/h} per person at rest \cite{persily2017carbon}), while ventilation removes CO\textsubscript{2} at a rate proportional to the concentration difference between indoor and outdoor air \cite{ashrae2022standard}. This mass-balance relationship creates a direct, physics-based link between CO\textsubscript{2} dynamics and occupancy patterns and underpins demand-controlled ventilation strategies \cite{lu2010design}.
 
-However, extracting \emph{duration} information from CO\textsubscript{2} time series faces several challenges. First, the decay time constant of indoor CO\textsubscript{2} (typically 30--120 minutes in naturally ventilated rooms) means that CO\textsubscript{2} remains elevated long after occupants depart, creating ambiguity between current and residual occupancy signal. Second, sensor noise, outdoor CO\textsubscript{2} fluctuations, and building-level ventilation transients introduce confounding variation. Third, the generation rate per occupant depends on metabolic activity, which varies with activity type and individual physiology.
+However, extracting \emph{duration} information from CO\textsubscript{2} time series faces several challenges. First, the decay time constant of indoor CO\textsubscript{2} (often tens to a few hundred minutes, depending on ventilation) means that CO\textsubscript{2} remains elevated long after occupants depart, creating ambiguity between current and residual occupancy signal. Second, sensor noise, outdoor CO\textsubscript{2} fluctuations, and building-level ventilation transients introduce confounding variation. Third, the generation rate per occupant depends on metabolic activity, which varies with activity type and individual physiology.
 
 In this paper, we present a method that addresses these challenges by operating at the \emph{block level} (four-hour windows) rather than attempting minute-by-minute occupancy reconstruction. This design choice is motivated by a fundamental signal-to-noise ratio (SNR) argument: at the minute timescale, the occupancy-driven CO\textsubscript{2} innovation (typically \SIrange{5}{60}{ppm/min}) is comparable to or smaller than sensor noise (\SIrange{5}{40}{ppm}), yielding minute-level SNR of order unity. At the block level, averaging over 240 minutes reduces \emph{innovation} noise, though the AR(1) autocorrelation ($\hat{\phi} \approx 0.995$) limits the effective noise reduction compared to the i.i.d.\ case; the practical gain comes from aggregating the cumulative CO\textsubscript{2} signal over a long window rather than from simple $\sqrt{n}$ averaging.
 
@@ -577,7 +585,7 @@ Across the 12 sensors, fitted decay factors span $\hat{\phi}=0.970$ to 0.995 (ab
 \label{sec:block_results}
 % -----------------------------------------------------------------------------
 
-For known-absent blocks (label = 0), unclamped estimates average \SI{12.8}{min} with a block-level median of \SI{0.0}{min}; 82.8\% of absent blocks estimate under \SI{5}{min}. For known-present blocks (label = 1), the mean estimated duration is \SI{61.1}{min} with a median of \SI{0.0}{min}, and 58.1\% of blocks produce nonzero estimates. This right-skewed distribution reflects both the conservative empty-room floor and the innovation detectability gate: many short or weak occupancy episodes fall below $M_\text{min}^{(b)}$ and are intentionally mapped to zero, while sustained occupancy remains nonzero.
+For known-absent blocks (label = 0), unclamped estimates average \SI{12.8}{min} with a block-level median of \SI{0.0}{min}; 82.8\% of absent blocks estimate under \SI{5}{min}. For known-present blocks (label = 1), the mean estimated duration is \SI{61.1}{min} with a median of \SI{0.0}{min}, and 58.1\% of blocks produce nonzero estimates. The median of \SI{0.0}{min} for label = 1 should be interpreted as below the CO\textsubscript{2} detectability threshold, not literal confirmed absence. This right-skewed distribution reflects both the conservative empty-room floor and the innovation detectability gate: many short or weak occupancy episodes fall below $M_\text{min}^{(b)}$ and are intentionally mapped to zero, while sustained occupancy remains nonzero.
 
 The right-skewed distribution of label = 1 estimates (Fig.~\ref{fig:histogram}) is consistent with the nature of four-hour block labeling: a ``present'' label indicates the occupant was in the room for \emph{at least some portion} of the block. Many blocks labeled as present may correspond to brief entries (returning to retrieve an item, checking in briefly) that produce modest CO\textsubscript{2} elevation. Under the innovation significance gate, these blocks can legitimately estimate to zero when net innovation evidence is insufficient, whereas extended study or sleep sessions produce sustained elevation and correspondingly higher duration estimates.
 
@@ -656,7 +664,6 @@ Because the innovation gate is an explicit significance test, the method has a b
 M_{\min}^{(b)} \approx \frac{z \hat{\sigma}_\varepsilon \sqrt{m_b}}{\hat{g}},
 \]
 where $m_b$ is the number of valid one-minute innovation pairs in block $b$. Across label = 1 \emph{sensor--blocks} with valid innovation pairs, the median detectability threshold is \SI{13.1}{min} and the P90 is \SI{26.0}{min}; 90.0\% of blocks are detectable at \SI{30}{min}, and 100\% are detectable at \SI{60}{min}. Fig.~\ref{fig:detectability} shows both the threshold distribution and its relationship to estimated block durations. Per-sensor detectability tables are included in the reproducible outputs package.
-where $m_b$ is the number of valid one-minute innovation pairs in block $b$. Across label = 1 sensor--blocks with valid pairs, the median detectability threshold is \SI{13.1}{min} and P90 is \SI{26.0}{min}; 90.0\% of blocks are detectable at \SI{30}{min}, and 100\% are detectable at \SI{60}{min}. Per-sensor detectability tables are provided in the reproducible outputs package.
 
 \begin{figure}[htbp]
     \centering
@@ -778,6 +785,8 @@ The block-level excess method has several properties that make it well suited fo
 \textbf{Per-sensor calibration handles heterogeneity.} The per-sensor empty-room floor (Eq.~\ref{eq:empty_floor}) and self-normalizing scale (Eq.~\ref{eq:scale}) adapt to each room's ventilation, sensor placement, and CO\textsubscript{2} baseline, avoiding the need for uniform room physics assumptions.
 
 \textbf{Full uncertainty quantification with structural terms.} The 200-sample Monte Carlo propagation produces 80\% AR(1)-conditional credible intervals that reflect parameter estimation uncertainty ($\hat{\phi}$, $\hat{g}$, $F_\text{empty}$) plus explicit structural mismatch priors (ventilation drift, metabolic variability, baseline shift, noise-scale inflation). The observed block mean is treated as fixed data, avoiding an ad-hoc $\sigma/\sqrt{n}$ observation-noise approximation under strong autocorrelation. The 47.9\% high-confidence rate provides users with clear guidance on which estimates are most reliable.
+
+\textbf{Reproducibility.} All analysis code, derived tables, and figures are available in the public repository (see Data availability). Raw survey-linked room-level data are excluded due to IRB and privacy constraints, but manuscript results are reproducible from the included derived outputs.
 
 % -----------------------------------------------------------------------------
 \subsection{Limitations}
@@ -937,7 +946,7 @@ Tibshirani, R., Saunders, M., Rosset, S., Zhu, J., Knight, K., 2005.
 \newblock \emph{Journal of the Royal Statistical Society: Series B} 67~(1), 91--108.
 
 \bibitem{persily2006indoor}
-Persily, A.K., 2006.
+Persily, A.K., 1997.
 \newblock Indoor carbon dioxide concentrations in commercial and institutional buildings.
 \newblock \emph{Indoor Air} 7~(3), 158--169.
 
