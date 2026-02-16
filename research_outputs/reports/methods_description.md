@@ -37,12 +37,21 @@ The estimate is clipped to [1.0, 60.0] ppm/min.
 
 ## Occupancy Duration Estimation
 
-For each minute during a labeled-present block, the occupancy intensity was computed as:
+The primary point estimate is level-based: carryover-adjusted block excess is calibrated
+against the empty-room floor, normalized by the finite-window scale, and mapped to minutes:
 
-    u_hat(t) = clip(max(innovation(t), 0) / g, 0, 1)
+    E_cal = max(E_adj - F_empty, 0)
+    M_level = clip((E_cal / S) * 240, 0, 240)
 
-where innovation(t) = excess(t) - phi * excess(t-1). The estimated occupied minutes within each
-4-hour block was the sum of minute-level intensities.
+To suppress false positives in empty blocks, an innovation significance gate and cap are then applied:
+
+    S_b = sum_t [ innovation(t) - mu_empty ]
+    innovation(t) = excess(t) - phi * excess(t-1)
+    M_innov = clip(S_b / g, 0, 240)
+    if S_b <= z * sigma_empty * sqrt(m_b): M_hat = 0
+    else: M_hat = min(M_level, M_innov + 15)
+
+with z = 1.28 and m_b the number of valid consecutive innovation pairs in the block.
 
 ## Uncertainty Quantification
 
@@ -52,7 +61,9 @@ point estimates with standard errors derived from the fitting residuals. In addi
 mismatch terms were sampled (enabled):
 generation-rate multiplier, additive phi drift, baseline-excess shift, and innovation-noise
 scale inflation. Block-level estimates were summarized as posterior median (p50) with 80%
-credible intervals (p10, p90).
+credible intervals (p10, p90). For semisynthetic stress evaluation, we additionally report
+split-conformal calibrated intervals (evaluation split only) to assess empirical coverage
+under modeled mismatch families.
 
 ## CO2 Smoothing
 

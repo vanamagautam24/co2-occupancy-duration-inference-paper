@@ -397,6 +397,7 @@ class SensorFit:
     n_occ_points: int
     room_type: str | None
     arr: pl.DataFrame  # minute-level data with computed columns
+    innovation_mean_empty: float = 0.0
     phi_is_fallback: bool = False  # True if n_decay < 30
     g_is_fallback: bool = False    # True if n_occ < 20
 
@@ -642,14 +643,40 @@ def _apply_innovation_gate_and_cap(
     n_innovation_pairs: np.ndarray,
     generation_rate: float,
     sigma_noise: float,
+    innovation_mean: float | np.ndarray = 0.0,
+    sample_observation: bool = False,
+    rng: np.random.Generator | None = None,
 ) -> np.ndarray:
+    """Apply innovation significance gate + innovation-consistency cap.
+
+    Detection and estimation are separated:
+    - Detection uses centered innovation significance:
+      S_centered > z * sigma * sqrt(m)
+    - Estimation uses the level-based minutes (input `minutes`), capped by
+      innovation-implied minutes WITHOUT subtracting the detection margin.
+    """
+    base_minutes = np.asarray(minutes, dtype=np.float64)
     innov = np.asarray(innovation_sum, dtype=np.float64)
     n_pairs = np.maximum(np.asarray(n_innovation_pairs, dtype=np.float64), 0.0)
-    noise_thr = INNOVATION_Z_SCORE * max(sigma_noise, 1.0) * np.sqrt(np.maximum(n_pairs, 1.0))
-    m_innov = np.maximum((innov - noise_thr) / max(generation_rate, 1.0), 0.0)
-    capped = np.minimum(minutes, m_innov + INNOVATION_CAP_SLACK_MINUTES)
-    gated = np.where(m_innov <= 0.0, 0.0, capped)
-    return np.clip(gated, 0.0, 240.0)
+    mean_empty = np.asarray(innovation_mean, dtype=np.float64)
+    if mean_empty.ndim == 0:
+        mean_empty = np.full(innov.shape, float(mean_empty), dtype=np.float64)
+    centered = innov - mean_empty * n_pairs
+
+    g_safe = max(float(generation_rate), 1.0)
+    sigma_safe = max(float(sigma_noise), 1.0)
+    noise_thr = INNOVATION_Z_SCORE * sigma_safe * np.sqrt(np.maximum(n_pairs, 1.0))
+
+    innovation_minutes = np.clip(centered / g_safe, 0.0, 240.0)
+    capped = np.minimum(base_minutes, innovation_minutes + INNOVATION_CAP_SLACK_MINUTES)
+    if sample_observation:
+        if rng is None:
+            rng = np.random.default_rng(0)
+        obs_sd = sigma_safe * np.sqrt(np.maximum(n_pairs, 1.0)) / g_safe
+        capped = np.clip(rng.normal(capped, obs_sd), 0.0, 240.0)
+
+    detected = (n_pairs >= 1.0) & (centered > noise_thr)
+    return np.where(detected, capped, 0.0)
 
 
 def _build_sensor_block_stats(
@@ -885,8 +912,10 @@ def fit_sensor_physics(
     if noise_df.height >= 20:
         noise = noise_df["innovation"].to_numpy()
         sigma_noise = float(np.std(noise, ddof=1))
+        innovation_mean_empty = float(np.mean(noise))
     else:
         sigma_noise = 35.0
+        innovation_mean_empty = 0.0
     sigma_noise = float(np.clip(sigma_noise, 5.0, 200.0))
 
     # --- Fit generation rate from occupied blocks ---
@@ -955,6 +984,7 @@ def fit_sensor_physics(
         n_occ_points=int(occ_df.height),
         room_type=room_type,
         arr=arr,
+        innovation_mean_empty=innovation_mean_empty,
         phi_is_fallback=(decay.height < 30),
         g_is_fallback=(occ_df.height < 20),
     )
@@ -1088,6 +1118,7 @@ def estimate_block_minutes_mc(
         n_innov_pairs_arr,
         fit.g_hat,
         fit.sigma_noise,
+        innovation_mean=fit.innovation_mean_empty,
     )
     sensor_block_stats = sensor_block_stats.with_columns([
         pl.Series("minutes_point", point_minutes),
@@ -1134,12 +1165,16 @@ def estimate_block_minutes_mc(
         minutes = occ_frac * block_duration
         phi_innov_s = float(np.clip(phi_s + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
         innovation_sum_s = innovation_curr_sum_arr - phi_innov_s * innovation_prev_sum_arr
+        innovation_mean_s = fit.innovation_mean_empty + baseline_shift_s * max(1.0 - phi_innov_s, 1e-6)
         minutes = _apply_innovation_gate_and_cap(
             minutes,
             innovation_sum_s,
             n_innov_pairs_arr,
             g_s,
             sigma_s,
+            innovation_mean=innovation_mean_s,
+            sample_observation=True,
+            rng=rng,
         )
 
         if clamp_absent:
@@ -1749,6 +1784,7 @@ def validate_leave_one_sensor_out(
         others = [f for j, f in enumerate(fits) if j != i]
         phi_cross = float(np.median([f.phi_hat for f in others]))
         g_cross = float(np.median([f.g_hat for f in others]))
+        innov_mu_cross = float(held_out.innovation_mean_empty)
 
         # Re-compute with cross-sensor params
         arr = held_out.arr.with_columns(
@@ -1766,6 +1802,7 @@ def validate_leave_one_sensor_out(
             n_occ_points=held_out.n_occ_points,
             room_type=held_out.room_type,
             arr=arr,
+            innovation_mean_empty=innov_mu_cross,
         )
 
         own_est = _estimate_blocks(held_out, cfg, rng)
@@ -1836,6 +1873,7 @@ def validate_sensitivity_phi(
                 n_decay_points=fit.n_decay_points,
                 n_occ_points=fit.n_occ_points,
                 room_type=fit.room_type, arr=arr,
+                innovation_mean_empty=fit.innovation_mean_empty,
             )
             block_est = _estimate_blocks(modified_fit, cfg, rng)
             label1 = block_est.filter(pl.col("present") == 1)
@@ -1882,6 +1920,7 @@ def validate_sensitivity_generation(
                 n_decay_points=fit.n_decay_points,
                 n_occ_points=fit.n_occ_points,
                 room_type=fit.room_type, arr=fit.arr,
+                innovation_mean_empty=fit.innovation_mean_empty,
             )
             block_est = _estimate_blocks(modified_fit, cfg, rng)
             label1 = block_est.filter(pl.col("present") == 1)
@@ -2076,6 +2115,7 @@ def validate_label0_temporal_split(
             test_n_pairs,
             fit.g_hat,
             fit.sigma_noise,
+            innovation_mean=fit.innovation_mean_empty,
         )
         oos_vals.extend(minutes_oos.tolist())
 
@@ -2099,6 +2139,7 @@ def validate_label0_temporal_split(
             all_n_pairs,
             fit.g_hat,
             fit.sigma_noise,
+            innovation_mean=fit.innovation_mean_empty,
         )
         ins_vals.extend(minutes_ins.tolist())
 
@@ -2642,6 +2683,7 @@ def _estimate_variant_minutes_from_stats(
             n_pairs,
             fit.g_hat,
             fit.sigma_noise,
+            innovation_mean=fit.innovation_mean_empty,
         )
 
     return np.clip(minutes, 0.0, 240.0)
@@ -2876,15 +2918,20 @@ def run_semisynthetic_validation(
             excess_ss_point = 0.5 * data_scale_val + 0.5 * excess_ss_physics_val
         else:
             excess_ss_point = excess_ss_physics_val
-        minutes_point = float(np.clip(cal_excess / max(excess_ss_point, 1.0), 0.0, 1.0) * block_duration)
+        minutes_point_level = float(np.clip(cal_excess / max(excess_ss_point, 1.0), 0.0, 1.0) * block_duration)
+
         n_pairs = float(max(n_local - 1, 0))
         prev_sum = float(np.sum(excess_series[:-1])) if n_local > 1 else 0.0
         curr_sum = float(np.sum(excess_series[1:])) if n_local > 1 else 0.0
         phi_innov = float(np.clip(fit_obj.phi_hat + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
         innov_sum = curr_sum - phi_innov * prev_sum if n_local > 1 else 0.0
         minutes_point = float(_apply_innovation_gate_and_cap(
-            np.array([minutes_point]), np.array([innov_sum]), np.array([n_pairs]),
-            fit_obj.g_hat, fit_obj.sigma_noise
+            np.array([minutes_point_level]),
+            np.array([innov_sum]),
+            np.array([n_pairs]),
+            fit_obj.g_hat,
+            fit_obj.sigma_noise,
+            innovation_mean=fit_obj.innovation_mean_empty,
         )[0])
 
         mc = np.zeros(cfg.n_mc_samples, dtype=np.float64)
@@ -2915,13 +2962,20 @@ def run_semisynthetic_validation(
                 excess_ss_s = 0.5 * data_scale_val + 0.5 * physics_scale_s
             else:
                 excess_ss_s = physics_scale_s
+            min_level_s = float(np.clip(cal_excess_s / max(excess_ss_s, 1.0), 0.0, 1.0) * block_duration)
 
-            min_s = float(np.clip(cal_excess_s / max(excess_ss_s, 1.0), 0.0, 1.0) * block_duration)
             phi_innov_s = float(np.clip(phi_s + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
             innov_sum_s = curr_sum - phi_innov_s * prev_sum if n_local > 1 else 0.0
+            innov_mean_s = fit_obj.innovation_mean_empty + baseline_shift_s * max(1.0 - phi_innov_s, 1e-6)
             min_s = float(_apply_innovation_gate_and_cap(
-                np.array([min_s]), np.array([innov_sum_s]), np.array([n_pairs]),
-                g_s, sigma_s
+                np.array([min_level_s]),
+                np.array([innov_sum_s]),
+                np.array([n_pairs]),
+                g_s,
+                sigma_s,
+                innovation_mean=innov_mean_s,
+                sample_observation=True,
+                rng=rng,
             )[0])
             mc[s] = min_s
 
@@ -3129,14 +3183,64 @@ def run_semisynthetic_validation(
             "estimated_minutes": [0.0], "error": [0.0], "abs_error": [0.0],
             "minutes_p10": [0.0], "minutes_p90": [0.0], "ci_width": [0.0],
             "mc_mean_minutes": [0.0], "coverage80": [0],
+            "minutes_p10_conf": [0.0], "minutes_p90_conf": [0.0],
+            "ci_width_conf": [0.0], "coverage80_conf": [0.0],
+            "conformal_role": ["none"], "conformal_pad": [0.0],
         })
 
     result_df = pl.DataFrame(results)
+
+    # Distribution-free interval calibration (split conformal) on semisynthetic data.
+    # This calibrates interval width for the modeled mismatch family without
+    # requiring minute-level field ground truth.
+    n = result_df.height
+    idx = np.arange(n, dtype=int)
+    rng_conf = np.random.default_rng(cfg.seed + 303)
+    rng_conf.shuffle(idx)
+    n_cal = min(max(int(0.6 * n), 40), max(n - 10, 1))
+    cal_idx = idx[:n_cal]
+    eval_idx = idx[n_cal:]
+
+    p10_arr = result_df["minutes_p10"].to_numpy().astype(np.float64)
+    p90_arr = result_df["minutes_p90"].to_numpy().astype(np.float64)
+    true_arr = result_df["true_minutes"].to_numpy().astype(np.float64)
+
+    scores = np.maximum.reduce([
+        p10_arr[cal_idx] - true_arr[cal_idx],
+        true_arr[cal_idx] - p90_arr[cal_idx],
+        np.zeros_like(cal_idx, dtype=np.float64),
+    ]) if cal_idx.size > 0 else np.array([0.0], dtype=np.float64)
+    conf_q = float(np.quantile(scores, 0.80, method="higher")) if scores.size > 0 else 0.0
+
+    p10_conf = np.clip(p10_arr - conf_q, 0.0, 240.0)
+    p90_conf = np.clip(p90_arr + conf_q, 0.0, 240.0)
+    cov_conf = ((p10_conf <= true_arr) & (true_arr <= p90_conf)).astype(float)
+    role = np.full(n, "eval", dtype=object)
+    role[cal_idx] = "cal"
+    # Keep calibration/evaluation separation explicit in reported conformal coverage.
+    cov_conf_report = cov_conf.astype(np.float64)
+    if cal_idx.size > 0:
+        cov_conf_report[cal_idx] = np.nan
+
+    result_df = result_df.with_columns([
+        pl.Series("minutes_p10_conf", p10_conf),
+        pl.Series("minutes_p90_conf", p90_conf),
+        pl.Series("ci_width_conf", p90_conf - p10_conf),
+        pl.Series("coverage80_conf", cov_conf_report),
+        pl.Series("conformal_role", role),
+        pl.lit(conf_q).alias("conformal_pad"),
+    ])
+
     mae = float(result_df.select(pl.col("abs_error").mean()).item())
     bias = float(result_df.select(pl.col("error").mean()).item())
     coverage = float(result_df.select(pl.col("coverage80").mean()).item()) * 100.0
+    coverage_conf = float(
+        result_df.filter(pl.col("conformal_role") == "eval").select(pl.col("coverage80_conf").mean()).item()
+    ) * 100.0 if result_df.filter(pl.col("conformal_role") == "eval").height > 0 else float("nan")
     log(f"    Semisynthetic MAE: {mae:.1f} min, bias: {bias:.1f} min")
     log(f"    Semisynthetic 80% CI coverage: {coverage:.1f}%")
+    if np.isfinite(coverage_conf):
+        log(f"    Semisynthetic conformal 80% CI coverage (eval split): {coverage_conf:.1f}%")
     log(f"    N scenarios evaluated: {result_df.height}")
     return result_df
 
@@ -3605,7 +3709,9 @@ def make_table_semisynthetic_summary(ss_df: pl.DataFrame) -> pl.DataFrame:
             pl.col("abs_error").quantile(0.90).alias("P90_abs_error"),
             pl.col("true_minutes").first(),
             pl.col("coverage80").mean().alias("coverage80"),
+            pl.col("coverage80_conf").drop_nans().mean().alias("coverage80_conf"),
             pl.col("ci_width").mean().alias("mean_ci_width"),
+            pl.col("ci_width_conf").mean().alias("mean_ci_width_conf"),
         ])
         .sort("group", "true_minutes", "scenario")
     )
@@ -3631,7 +3737,9 @@ def make_table10_semisynthetic_coverage(ss_df: pl.DataFrame) -> pl.DataFrame:
         .agg([
             pl.len().alias("n"),
             pl.col("coverage80").mean().alias("coverage80"),
+            pl.col("coverage80_conf").drop_nans().mean().alias("coverage80_conf"),
             pl.col("ci_width").mean().alias("mean_ci_width"),
+            pl.col("ci_width_conf").mean().alias("mean_ci_width_conf"),
             pl.col("abs_error").mean().alias("MAE"),
             pl.col("error").mean().alias("bias"),
         ])
@@ -3644,7 +3752,9 @@ def make_table10_semisynthetic_coverage(ss_df: pl.DataFrame) -> pl.DataFrame:
             pl.lit("overall").alias("group"),
             pl.len().alias("n"),
             pl.col("coverage80").mean().alias("coverage80"),
+            pl.col("coverage80_conf").drop_nans().mean().alias("coverage80_conf"),
             pl.col("ci_width").mean().alias("mean_ci_width"),
+            pl.col("ci_width_conf").mean().alias("mean_ci_width_conf"),
             pl.col("abs_error").mean().alias("MAE"),
             pl.col("error").mean().alias("bias"),
         ])
@@ -4476,12 +4586,21 @@ The estimate is clipped to [1.0, 60.0] ppm/min.
 
 ## Occupancy Duration Estimation
 
-For each minute during a labeled-present block, the occupancy intensity was computed as:
+The primary point estimate is level-based: carryover-adjusted block excess is calibrated
+against the empty-room floor, normalized by the finite-window scale, and mapped to minutes:
 
-    u_hat(t) = clip(max(innovation(t), 0) / g, 0, 1)
+    E_cal = max(E_adj - F_empty, 0)
+    M_level = clip((E_cal / S) * 240, 0, 240)
 
-where innovation(t) = excess(t) - phi * excess(t-1). The estimated occupied minutes within each
-4-hour block was the sum of minute-level intensities.
+To suppress false positives in empty blocks, an innovation significance gate and cap are then applied:
+
+    S_b = sum_t [ innovation(t) - mu_empty ]
+    innovation(t) = excess(t) - phi * excess(t-1)
+    M_innov = clip(S_b / g, 0, 240)
+    if S_b <= z * sigma_empty * sqrt(m_b): M_hat = 0
+    else: M_hat = min(M_level, M_innov + 15)
+
+where z = 1.28 and m_b is the number of valid consecutive innovation pairs in the block.
 
 ## Uncertainty Quantification
 
@@ -4491,7 +4610,9 @@ point estimates with standard errors derived from the fitting residuals. In addi
 mismatch terms were sampled ({'enabled' if cfg.mc_include_structural_mismatch else 'disabled'}):
 generation-rate multiplier, additive phi drift, baseline-excess shift, and innovation-noise
 scale inflation. Block-level estimates were summarized as posterior median (p50) with 80%
-credible intervals (p10, p90).
+credible intervals (p10, p90). For semisynthetic stress evaluation, we additionally report
+split-conformal calibrated intervals (evaluation split only) to assess empirical coverage
+under modeled mismatch families.
 
 ## CO2 Smoothing
 

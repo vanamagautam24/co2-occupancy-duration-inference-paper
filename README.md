@@ -23,7 +23,8 @@ flowchart TD
     D --> E[Block Minutes Estimation]
     E --> F[Monte Carlo Uncertainty<br/>Parameter + Structural Mismatch Priors]
     F --> G[Validation + Sensitivity + Baseline Comparators]
-    G --> H[Tables / Figures / Paper Outputs]
+    G --> SC[Semisynthetic + Split-Conformal CI Calibration Check]
+    SC --> H[Tables / Figures / Paper Outputs]
 ```
 
 ## Validation Framework
@@ -63,29 +64,29 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 
 | Metric | Value | Criterion | Pass |
 |---|---:|---:|:---:|
-| C1 in-sample mean unclamped (label=0) | 11.23 min | < 15 | YES |
-| C2 in-sample % under 5 min | 80.3% | > 60% | YES |
-| C1-OOS mean unclamped (label=0) | 19.54 min | < 20 | YES |
-| C2-OOS % under 5 min | 77.2% | > 50% | YES |
+| C1 in-sample mean unclamped (label=0) | 10.77 min | < 15 | YES |
+| C2 in-sample % under 5 min | 79.9% | > 60% | YES |
+| C1-OOS mean unclamped (label=0) | 17.03 min | < 20 | YES |
+| C2-OOS % under 5 min | 80.7% | > 50% | YES |
 | C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
-| C1-OOS 5% trimmed mean | 12.08 min | descriptive | N/A (descriptive) |
-| C1-OOS tail contribution (top 5%) | 53.3% | descriptive | N/A (descriptive) |
-| E1 LOO mean relative MAE | 1.44 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.261 | > 0.2 | YES |
-| E3 max phi sensitivity change | 78.0% | < 200% | YES |
-| E4 high-confidence blocks | 45.2% | > 40% | YES |
+| C1-OOS 5% trimmed mean | 9.9 min | descriptive | N/A (descriptive) |
+| C1-OOS tail contribution (top 5%) | 56.8% | descriptive | N/A (descriptive) |
+| E1 LOO mean relative MAE | 1.42 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.223 | > 0.2 | YES |
+| E3 max phi sensitivity change | 75.6% | < 200% | YES |
+| E4 high-confidence blocks | 46.2% | > 40% | YES |
 
 `N/A (descriptive)` means the metric is reported for interpretation (robustness/tail behavior), not used as a pass/fail criterion.
 
 ## Semisynthetic CI Coverage (Latest Run)
 Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
 
-| Group | Coverage (80% CI) | Mean CI Width | MAE |
-|---|---:|---:|---:|
-| Continuous | 69.6% | 79.9 min | 44.5 min |
-| Fragmented | 76.9% | 106.5 min | 54.9 min |
-| Stress | 69.2% | 110.6 min | 44.6 min |
-| Overall | 70.7% | 97.4 min | 46.3 min |
+| Group | Cov80 (Raw MC) | Cov80 (Conformal, eval) | Mean CI Width (Raw) | Mean CI Width (Conformal) | MAE |
+|---|---:|---:|---:|---:|---:|
+| Continuous | 60.8% | 80.9% | 82.7 min | 114.5 min | 49.9 min |
+| Fragmented | 57.7% | 89.3% | 107.6 min | 140.8 min | 59.2 min |
+| Stress | 68.5% | 87.5% | 111.0 min | 147.2 min | 48.9 min |
+| Overall | 63.5% | 85.4% | 98.9 min | 132.8 min | 51.0 min |
 
 ## Baseline Comparator Note
 Source: `research_outputs/tables/table07_baseline_comparators.csv`
