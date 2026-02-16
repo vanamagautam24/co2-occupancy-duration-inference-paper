@@ -290,6 +290,14 @@ The innovation noise is estimated as the standard deviation of innovations durin
 \end{equation}
 where $\mathcal{E}$ is the set of absent-labeled minute observations. This is clipped to $[\SI{5}{}, \SI{200}{ppm}]$.
 
+\subsubsection{Empty-room innovation mean ($\mu_{\emptyset}$)}
+
+In an ideal AR(1) empty-room regime, innovations $E_t-\hat{\phi}E_{t-1}$ have mean zero. In practice, small drift can remain due to baseline mismatch, sensor offset, or persistent non-occupant CO\textsubscript{2} sources. We estimate a per-sensor empty-room innovation mean from absent-labeled consecutive pairs:
+\begin{equation}
+    \hat{\mu}_{\emptyset} = \text{mean}\!\left(\left\{E_t-\hat{\phi}E_{t-1} : t \in \mathcal{E}, \; \Delta t = 1\right\}\right).
+\end{equation}
+This centering term is used only in the innovation gate/cap and does not alter block-mean excess calibration.
+
 \subsubsection{Fallback parameter rules}
 
 When a sensor has insufficient data for reliable parameter estimation, fallback values are used:
@@ -334,7 +342,7 @@ The carryover-adjusted block mean excess is then
 All downstream calibration and scaling steps use $\bar{E}^{(b)}_\text{adj}$.
 
 \paragraph{Selection of floor multiplier ($k$).}
-The floor multiplier determines how aggressively residual CO\textsubscript{2} is suppressed. Because the finite-window normalization (Eq.~\ref{eq:finite_window}) maps a given excess to more inferred minutes than steady-state normalization would, the empty-room floor must be raised correspondingly to maintain empty-room specificity. We fixed $k = 0.73$ from calibration sweeps on this cohort to satisfy the empty-room diagnostics while retaining non-degenerate sensitivity. At this setting, 60.4\% of present-labeled sensor--blocks retain nonzero estimated duration in the final model.
+The floor multiplier determines how aggressively residual CO\textsubscript{2} is suppressed. Because the finite-window normalization (Eq.~\ref{eq:finite_window}) maps a given excess to more inferred minutes than steady-state normalization would, the empty-room floor must be raised correspondingly to maintain empty-room specificity. After updating the innovation gate/cap formulation, we ran a deterministic sweep over $k \in [0.67, 0.73]$ in increments of 0.01 and selected the smallest $k$ satisfying C1 ($<\SI{15}{min}$), C2 ($>\SI{60}{\%}$), and the relaxed temporal split checks C1-OOS ($<\SI{20}{min}$), C2-OOS ($>\SI{50}{\%}$). This procedure selected $k=0.73$. At this setting, 60.4\% of present-labeled sensor--blocks yield nonzero estimated duration.
 
 \subsubsection{Self-normalizing scale}
 
@@ -641,18 +649,18 @@ Fig.~\ref{fig:sensor_params} visualizes the distribution of sensor parameters ac
 
 \subsubsection{High-baseline sensor robustness}
 
-Sensor 22168412 has a notably elevated baseline (\SI{542}{ppm}) relative to the cohort median (\SI{419}{ppm}), which could reflect local ventilation conditions or sensor offset. To test whether this sensor drives conclusions, we ran two sensitivity checks: (i) excluding the high-baseline sensor entirely, and (ii) forcing that sensor's baseline to the cohort median while leaving all other model components unchanged. Results are summarized in Table~\ref{tab:high_baseline_sens} and Fig.~\ref{fig:high_baseline_sens}. Core diagnostics remain stable (E1/E2 and empty-room metrics), and forcing a common baseline changes the high-baseline sensor's mean present-block estimate by only \SI{-1.95}{min}. This indicates that the main conclusions are not dominated by a single high-baseline sensor.
+Sensor 22168412 has a notably elevated baseline (\SI{542}{ppm}) relative to the cohort median (\SI{419}{ppm}), which could reflect local ventilation conditions or sensor offset. To test whether this sensor drives conclusions, we ran two sensitivity checks: (i) excluding the high-baseline sensor entirely, and (ii) forcing that sensor's baseline to the cohort median while leaving all other model components unchanged. Results are summarized in Table~\ref{tab:high_baseline_sens} and Fig.~\ref{fig:high_baseline_sens}. Core cross-sensor diagnostics remain stable (E1/E2), while empty-room specificity shifts only modestly (C1 rises to \SI{15.61}{min} when excluding the sensor). Forcing a common baseline changes the high-baseline sensor's mean present-block estimate by only \SI{-1.95}{min}. This indicates that the main conclusions are not dominated by a single high-baseline sensor.
 
 \begin{table}[htbp]
 \centering
-\caption{Sensitivity of key diagnostics to the highest-baseline sensor (22168412).}
+\caption{Sensitivity of key diagnostics to the highest-baseline sensor (22168412). $\Delta$ high-sensor mean is reported only for scenarios where sensor 22168412 remains in the analysis; it is undefined when the sensor is excluded.}
 \label{tab:high_baseline_sens}
 \begin{tabular}{lcccccc}
 \toprule
 Scenario & C1 (\si{min}) & C2 (\%) & Label=1 mean (\si{min}) & E1 & E2 & $\Delta$ high-sensor mean (\si{min}) \\
 \midrule
 Full data & 14.96 & 76.2 & 60.8 & 1.164 & 0.301 & 0.00 \\
-Exclude high-baseline sensor & 15.61 & 76.4 & 66.0 & 1.155 & 0.299 & -13.83 \\
+Exclude high-baseline sensor & 15.61 & 76.4 & 66.0 & 1.155 & 0.299 & --- \\
 Force common baseline on high sensor & 14.86 & 76.2 & 60.6 & 1.164 & 0.301 & -1.95 \\
 \bottomrule
 \end{tabular}
@@ -844,7 +852,7 @@ Because the innovation gate is an explicit significance test, the method has a b
 \[
 M_{\min}^{(b)} \approx \frac{z \hat{\sigma}_\varepsilon \sqrt{m_b}}{\hat{g}},
 \]
-where $m_b$ is the number of valid one-minute innovation pairs in block $b$. Table~\ref{tab:detectability} summarizes this quantity by sensor for label = 1 \emph{sensor--blocks} with valid innovation pairs. Across this subset, the median detectability threshold is \SI{13.1}{min} and the P90 is \SI{26.0}{min}; 90.0\% of blocks are detectable at \SI{30}{min}, and 100\% are detectable at \SI{60}{min}. The nonzero-estimate rate across these blocks is 48.2\%. Fig.~\ref{fig:detectability} shows both the threshold distribution and its relationship to estimated block durations.
+where $m_b$ is the number of valid one-minute innovation pairs in block $b$. Table~\ref{tab:detectability} summarizes this quantity by sensor for label = 1 \emph{sensor--blocks} with valid innovation pairs. Across this subset, the median detectability threshold is \SI{13.1}{min} and the P90 is \SI{26.0}{min}; 90.0\% of blocks are detectable at \SI{30}{min}, and 100\% are detectable at \SI{60}{min}. The nonzero-estimate rate across this detectability subset is 48.2\%. This differs from the overall nonzero rate on all present-labeled sensor--blocks (60.4\%) because detectability diagnostics require valid consecutive innovation pairs and therefore use a stricter denominator. Fig.~\ref{fig:detectability} shows both the threshold distribution and its relationship to estimated block durations.
 
 \begin{table}[htbp]
 \centering
@@ -1000,12 +1008,12 @@ Table~\ref{tab:ablation} and Fig.~\ref{fig:ablation} summarize the stepwise meth
 
 \begin{table}[htbp]
 \centering
-\caption{Ablation ladder for OOS empty-room diagnostics and occupied-block behavior on unique sensor--blocks. C1-OOS and C2-OOS are computed on the same temporal split protocol used in Section~\ref{sec:validation_results}.}
+\caption{Ablation ladder for temporal-split empty-room diagnostics and occupied-block behavior on unique sensor--blocks. C1-train and C2-train are computed on the first 70\% of each sensor's empty blocks (used to fit $F_\text{empty}$); C1-OOS and C2-OOS are computed on the held-out 30\% using the same protocol as Section~\ref{sec:validation_results}.}
 \label{tab:ablation}
 \small
 \begin{tabular}{llcccccc}
 \toprule
-ID & Variant & C1-in & C2-in (\%) & C1-OOS & C2-OOS (\%) & Label=1 mean & Label=1 nonzero (\%) \\
+ID & Variant & C1-train & C2-train (\%) & C1-OOS & C2-OOS (\%) & Label=1 mean & Label=1 nonzero (\%) \\
 \midrule
 A0 & Raw excess + global floor (no carryover, no gate) & 17.0 & 80.2 & 49.5 & 59.6 & 86.0 & 61.5 \\
 A1 & + Carryover correction & 11.8 & 84.2 & 28.1 & 66.7 & 73.6 & 60.8 \\
@@ -1064,7 +1072,7 @@ Sensor ID & Noise scale & $\lambda_1$ & $\lambda_2$ \\
 \subsection{Semisynthetic validation}
 % -----------------------------------------------------------------------------
 
-Because no ground-truth occupied minutes are available, we constructed a semisynthetic validation by injecting known synthetic occupancy patterns into real empty-room CO\textsubscript{2} segments (see Section~\ref{sec:semisynthetic_methods}).  Fig.~\ref{fig:semisynthetic} shows the results and Table~\ref{tab:semisynthetic_summary} provides numeric accuracy by scenario.  Across continuous scenarios, the estimator still underestimates with bias from approximately $-22$~min (30-min scenario) to $-42$~min for full-block (240-min) occupancy.  Fragmented patterns produce larger negative bias than continuous occupancy of equal total duration (e.g., frag\_4$\times$30 bias $= -48.2$~min vs.\ cont\_120 bias $= -22.2$~min), consistent with block-level averaging smoothing out short visits and innovation-gate detectability limits.  Under model-mismatch stress tests, performance varies strongly by mismatch type: $g\times0.7$ remains the hardest condition (MAE \SI{72.2}{min}, raw coverage 58.3\%), while $g\times1.3$ remains comparatively stable (MAE \SI{29.9}{min}).  The $g\times0.7$ case is intentionally adversarial relative to the central structural prior support and is reported as a worst-case boundary condition rather than an in-prior regime.  With structural-mismatch priors included in Monte Carlo, overall raw nominal 80\% interval coverage is 84.5\% (continuous: 82.6\%, fragmented: 95.8\%, stress: 81.7\%). A split-conformal padding layer yields held-out semisynthetic 80\% coverage of 86.0\% (continuous: 81.2\%, fragmented: 95.8\%, stress: 85.7\%), at the cost of wider intervals; these are calibrated predictive intervals over the modeled mismatch family, while raw Monte Carlo intervals remain AR(1)-conditional credible intervals.
+Because no ground-truth occupied minutes are available, we constructed a semisynthetic validation by injecting known synthetic occupancy patterns into real empty-room CO\textsubscript{2} segments (see Section~\ref{sec:semisynthetic_methods}).  Fig.~\ref{fig:semisynthetic} shows the results and Table~\ref{tab:semisynthetic_summary} provides numeric accuracy by scenario.  Across continuous scenarios, the estimator still underestimates with bias from approximately $-22$~min (30-min scenario) to $-42$~min for full-block (240-min) occupancy.  Fragmented patterns produce larger negative bias than continuous occupancy of equal total duration (e.g., frag\_4$\times$30 bias $= -48.2$~min vs.\ cont\_120 bias $= -22.2$~min), consistent with block-level averaging smoothing out short visits and innovation-gate detectability limits. Coverage is lowest for very short scenarios because many 30-minute cases lie near or below the detectability threshold $M_\text{min}^{(b)}$ and are intentionally mapped toward zero; coverage is therefore more interpretable for durations above typical $M_\text{min}$ in this cohort. Under model-mismatch stress tests, performance varies strongly by mismatch type: $g\times0.7$ remains the hardest condition (MAE \SI{72.2}{min}, raw coverage 58.3\%), while $g\times1.3$ remains comparatively stable (MAE \SI{29.9}{min}).  The $g\times0.7$ case is intentionally adversarial relative to the central structural prior support and is reported as a worst-case boundary condition rather than an in-prior regime.  With structural-mismatch priors included in Monte Carlo, overall raw nominal 80\% interval coverage is 84.5\% (continuous: 82.6\%, fragmented: 95.8\%, stress: 81.7\%). A split-conformal padding layer yields held-out semisynthetic 80\% coverage of 86.0\% (continuous: 81.2\%, fragmented: 95.8\%, stress: 85.7\%), at the cost of wider intervals; these are calibrated predictive intervals over the modeled mismatch family, while raw Monte Carlo intervals remain AR(1)-conditional credible intervals.
 
 \begin{figure}[htbp]
     \centering
