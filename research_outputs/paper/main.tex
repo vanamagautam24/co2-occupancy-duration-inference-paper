@@ -659,9 +659,9 @@ Sensor 22168412 has a notably elevated baseline (\SI{542}{ppm}) relative to the 
 \toprule
 Scenario & C1 (\si{min}) & C2 (\%) & Label=1 mean (\si{min}) & E1 & E2 & $\Delta$ high-sensor mean (\si{min}) \\
 \midrule
-Full data & 14.96 & 76.2 & 60.8 & 1.164 & 0.301 & 0.00 \\
-Exclude high-baseline sensor & 15.61 & 76.4 & 66.0 & 1.155 & 0.299 & --- \\
-Force common baseline on high sensor & 14.86 & 76.2 & 60.6 & 1.164 & 0.301 & -1.95 \\
+Full data & 14.96 & 76.2 & 60.8 & 1.196 & 0.217 & 0.00 \\
+Exclude high-baseline sensor & 15.61 & 76.4 & 66.0 & 1.185 & 0.206 & --- \\
+Force common baseline on high sensor & 14.86 & 76.2 & 60.6 & 1.196 & 0.217 & -1.95 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -755,8 +755,8 @@ Tier & Test & Value & Criterion & Pass? & Interpretation \\
 & C2-OOS: \% under 5~min & 78.9\% & ${>}50\%$ & YES & Majority of held-out absent blocks near zero \\
 \midrule
 \multicolumn{6}{l}{\emph{Independent evaluation criteria}} \\
-& E1: LOO mean relative MAE & 1.16 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
-& E2: LOO mean Spearman $\rho$ & 0.301 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
+& E1: LOO mean relative MAE & 1.20 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
+& E2: LOO mean Spearman $\rho$ & 0.217 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
 & E3: Max $\phi$ sensitivity (\%) & 51.8\% & ${<}200\%$ & YES & Smooth response to decay parameter \\
 & E4: \% blocks high confidence & 44.3\% & ${>}40\%$ & YES & Substantial fraction of estimates have tight uncertainty \\
 \bottomrule
@@ -778,7 +778,7 @@ The 23.8\% of empty blocks that estimate above \SI{5}{min} represent cases where
 
 \subsubsection{Leave-one-sensor-out cross-validation}
 
-Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean relative MAE is 1.16 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.301 (criterion: ${>}0.2$).
+Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean relative MAE is 1.20 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.217 (criterion: ${>}0.2$).
 
 \begin{table}[htbp]
 \centering
@@ -789,25 +789,25 @@ Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, 
 \toprule
 Sensor ID & Room & $\hat{\phi}_\text{own}$ & $\hat{g}_\text{own}$ & $\hat{g}_\text{cross}$ & MAE & Rel.\ MAE & $\rho$ \\
 \midrule
-20233647 & Single & 0.992 & 18.9 & 19.2 & 61.2 & 1.89 & 0.30 \\
-20233665 & Single & 0.995 & 30.5 & 18.9 & 40.0 & 1.62 & 0.29 \\
-20233681 & Single & 0.970 & 60.0 & 18.9 & 85.2 & 0.48 & 0.19 \\
-20233685 & Single & 0.991 & 14.5 & 19.2 & 55.6 & 0.69 & 0.26 \\
-20251591 & Single & 0.987 & 11.9 & 19.2 & 50.5 & 1.19 & 0.10 \\
-22165976 & Shared & 0.995 & 16.3 & 19.2 & 78.9 & 0.83 & -0.13 \\
+20233647 & Single & 0.992 & 18.9 & 19.2 & 51.5 & 1.59 & 0.44 \\
+20233665 & Single & 0.995 & 30.5 & 18.9 & 49.5 & 2.00 & 0.11 \\
+20233681 & Single & 0.970 & 60.0 & 18.9 & 92.6 & 0.52 & 0.02 \\
+20233685 & Single & 0.991 & 14.5 & 19.2 & 66.4 & 0.82 & -0.06 \\
+20251591 & Single & 0.987 & 11.9 & 19.2 & 56.2 & 1.33 & -0.32 \\
+22165976 & Shared & 0.995 & 16.3 & 19.2 & 71.3 & 0.75 & 0.03 \\
 22165978 & Single & 0.994 & 5.4 & 19.2 & 4.8 & 1.20 & 0.76 \\
-22165989 & Single & 0.995 & 22.8 & 18.9 & 37.2 & 1.47 & 0.57 \\
-22165990 & Single & 0.970 & 26.2 & 18.9 & 72.3 & 0.77 & 0.21 \\
-22165993 & Single & 0.986 & 30.2 & 18.9 & 53.2 & 1.22 & 0.35 \\
-22165994 & Shared & 0.987 & 7.7 & 19.2 & 23.4 & 1.36 & 0.38 \\
-22168412 & Shared & 0.984 & 19.2 & 18.9 & 16.3 & 1.26 & 0.32 \\
+22165989 & Single & 0.995 & 22.8 & 18.9 & 47.3 & 1.86 & 0.34 \\
+22165990 & Single & 0.970 & 26.2 & 18.9 & 80.7 & 0.86 & -0.09 \\
+22165993 & Single & 0.986 & 30.2 & 18.9 & 47.4 & 1.09 & 0.44 \\
+22165994 & Shared & 0.987 & 7.7 & 19.2 & 17.7 & 1.03 & 0.60 \\
+22168412 & Shared & 0.984 & 19.2 & 18.9 & 16.9 & 1.31 & 0.34 \\
 \midrule
-\multicolumn{5}{l}{Mean} & 48.2 & 1.16 & 0.301 \\
+\multicolumn{5}{l}{Mean} & 50.2 & 1.20 & 0.217 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165989 with $\rho = 0.57$), while a subset remains weak or slightly negative (e.g., 22165976 with $\rho = -0.13$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.21 and IQR [0.82, 1.39], while Spearman $\rho$ has median 0.30 and IQR [0.21, 0.36]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
+Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165994 with $\rho = 0.60$), while a subset remains weak or negative (e.g., 20251591 with $\rho = -0.32$ and 22165990 with $\rho = -0.09$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.14 and IQR [0.85, 1.39], while Spearman $\rho$ has median 0.23 and IQR [0.00, 0.44]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
 
 \subsubsection{Sensitivity analysis}
 
@@ -1005,6 +1005,7 @@ To verify that the empty-room floor $F_\text{empty}$ generalizes beyond the bloc
 % -----------------------------------------------------------------------------
 
 Table~\ref{tab:ablation} and Fig.~\ref{fig:ablation} summarize the stepwise method development targeted at heavy-tail C1-OOS failures. Starting from a raw-excess baseline (A0), adding carryover correction (A1), innovation gate/cap (A2), and finally the two-regime empty floor (A3) progressively reduces OOS empty-room error while preserving C2-OOS. The full method (A3) is the first variant to satisfy both relaxed OOS criteria simultaneously (C1-OOS \SI{19.73}{min}, C2-OOS 78.9\%).
+We additionally implemented an evidence-gated low-$g$ rescue extension for floor-clipped blocks (experimental, not used in final results). While it improved the semisynthetic $g\times0.7$ stress case (MAE from \SI{72.2}{min} to \SI{61.5}{min}), it substantially degraded empty-room specificity (C1 from \SI{14.96}{min} to \SI{32.61}{min} and C1-OOS from \SI{19.73}{min} to \SI{54.71}{min}); therefore, it was excluded from the final pipeline.
 
 \begin{table}[htbp]
 \centering

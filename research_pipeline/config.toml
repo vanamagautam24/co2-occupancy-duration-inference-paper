@@ -40,6 +40,23 @@ generation_shared = 18.0
 generation_min = 1.0
 generation_max = 60.0
 
+# Effective generation-rate regime model (for low-activity/night blocks).
+# Low regime reduces effective g and uses regime-specific data scale, which
+# improves robustness in low-generation mismatch scenarios (e.g., g x 0.7).
+generation_regime_enabled = false
+generation_regime_low_multiplier = 0.70
+generation_regime_high_multiplier = 1.00
+generation_regime_low_blocks = [22, 2]
+generation_regime_min_occ_blocks = 3
+
+# One-sided low-g innovation rescue (targets floor-clipped low-signal occupied blocks).
+# Activates only with strong innovation evidence and enough valid consecutive pairs.
+innovation_rescue_enabled = false
+innovation_rescue_z_hi = 2.33
+innovation_rescue_g_quantile = 0.05
+innovation_rescue_min_pairs = 30
+innovation_rescue_min_pos_frac = 0.60
+
 # Minimum data quality thresholds
 min_data_minutes_per_block = 30
 min_minutes_if_present = 5.0

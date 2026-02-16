@@ -52,6 +52,8 @@ To suppress false positives in empty blocks, an innovation significance gate and
     else: M_hat = min(M_level, M_innov + 15)
 
 where z = 1.28 and m_b is the number of valid consecutive innovation pairs in the block.
+The optional floor-clipped innovation rescue was disabled in this run.
+
 
 ## Uncertainty Quantification
 

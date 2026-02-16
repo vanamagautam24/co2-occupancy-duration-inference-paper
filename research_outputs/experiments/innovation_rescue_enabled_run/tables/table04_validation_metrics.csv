@@ -1,0 +1,13 @@
+test,value,criterion,pass,interpretation
+V1: Label=0 mean unclamped minutes (in-sample),32.61,< 15,NO,Model correctly identifies empty rooms from CO2
+V2: Label=0 % under 5 min (in-sample),61.1,> 60%,YES,Majority of absent blocks produce near-zero estimates
+V1-OOS: Label=0 mean unclamped minutes (out-of-sample),54.71,< 20,NO,Temporal-split calibration degrades with limited training data
+V2-OOS: Label=0 % under 5 min (out-of-sample),49.1,> 50%,NO,Majority of held-out absent blocks produce near-zero estimates
+V1-OOS robust: median unclamped minutes,6.08,report,NA,Typical held-out empty block estimate
+V1-OOS robust: P95 unclamped minutes,206.32,report,NA,Tail severity of held-out empty-block errors
+V1-OOS robust: 5% trimmed mean,50.26,report,NA,Mean after trimming top/bottom 5% (tail-robust)
+V1-OOS tail share from top 5% blocks,21.2,report,NA,How much OOS mean is dominated by rare high-carryover blocks
+V3: LOO mean relative MAE,1.32,< 1.5,YES,Cross-sensor parameter estimates within 150% of sensor-specific
+V4: LOO mean Spearman rank correlation,0.147,> 0.2,NO,Block rank ordering preserved with cross-sensor parameters
+V5: Max phi sensitivity (% change),61.9,< 200%,YES,Estimates change smoothly with decay parameter
+V6: % blocks with high confidence,30.8,> 40%,NO,Substantial fraction of estimates have tight uncertainty
