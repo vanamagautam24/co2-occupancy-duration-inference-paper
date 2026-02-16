@@ -40,23 +40,6 @@ generation_shared = 18.0
 generation_min = 1.0
 generation_max = 60.0
 
-# Effective generation-rate regime model (for low-activity/night blocks).
-# Low regime reduces effective g and uses regime-specific data scale, which
-# improves robustness in low-generation mismatch scenarios (e.g., g x 0.7).
-generation_regime_enabled = false
-generation_regime_low_multiplier = 0.70
-generation_regime_high_multiplier = 1.00
-generation_regime_low_blocks = [22, 2]
-generation_regime_min_occ_blocks = 3
-
-# One-sided low-g innovation rescue (targets floor-clipped low-signal occupied blocks).
-# Activates only with strong innovation evidence and enough valid consecutive pairs.
-innovation_rescue_enabled = false
-innovation_rescue_z_hi = 2.33
-innovation_rescue_g_quantile = 0.05
-innovation_rescue_min_pairs = 30
-innovation_rescue_min_pos_frac = 0.60
-
 # Minimum data quality thresholds
 min_data_minutes_per_block = 30
 min_minutes_if_present = 5.0
@@ -68,7 +51,7 @@ estimator = "block_excess"
 # Controls the boundary between "residual CO2" and "occupancy signal".
 # Higher k → more aggressive suppression of empty-block false positives,
 # at the cost of reduced sensitivity to brief occupancy.
-floor_multiplier = 0.73
+floor_multiplier = 0.84
 
 # Fused lasso ADMM parameters (only used when estimator = "fused_lasso")
 fused_lasso_admm_rho = 1.0
@@ -90,23 +73,17 @@ sensitivity_gen_multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 mc_include_structural_mismatch = true
 
 # Multiplicative random effect on generation rate (lognormal std in log-space)
-# Chosen so the central 80% prior range reaches about x1.3 (ln(1.3)/1.2816).
+# Central 80% approximately spans [0.77, 1.30] around the nominal generation.
 mc_structural_sigma_g_log = 0.205
 
 # Additive random effect on phi per draw (unitless, clipped to [phi_min, phi_max])
-# Chosen so central 80% range reaches about +0.005 drift.
+# Central 80% approximately spans +/-0.005 around the sampled phi.
 mc_structural_sigma_phi = 0.0039
 
 # Additive random effect on baseline excess (ppm) per draw.
-# Chosen so central 80% range reaches about +/-30 ppm offset.
+# Central 80% approximately spans +/-30 ppm baseline mismatch.
 mc_structural_sigma_baseline_ppm = 23.4
 
 # Multiplicative random effect on innovation noise scale (lognormal std in log-space).
-# Chosen so central 80% prior range reaches about xsqrt(2) inflation.
+# Central 80% approximately spans [0.71, 1.41] noise-scale mismatch.
 mc_structural_sigma_noise_log = 0.270
-
-# Split-conformal calibration settings for semisynthetic interval coverage reporting.
-# These do not change point estimates; they calibrate CI width on semisynthetic
-# calibration splits to target nominal (1 - alpha) marginal coverage.
-conformal_alpha = 0.20
-conformal_calibration_fraction = 0.60

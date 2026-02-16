@@ -1,12 +1,12 @@
 # Robustness Report: CO2-Based Occupancy Duration Estimation
 
-Generated: 2026-02-16 01:44
+Generated: 2026-02-16 03:36
 
 ## 1. Executive Summary
 
 - **24 subjects** mapped to **12 sensors**
 - **774 block-level estimates** (535 present, 239 absent)
-- Mean estimated occupied minutes (label=1): **60.8 min** (median: 5.5 min)
+- Mean estimated occupied minutes (label=1): **61.1 min** (median: 0.0 min)
 - This represents **25%** of each 4-hour block on average
 - 144 subject-days analyzed
 
@@ -40,7 +40,7 @@ Where:
 
 **What was tested**: For blocks where subjects self-reported being ABSENT (label=0), we computed what the physics model would have estimated WITHOUT knowing the label.
 
-**Result**: Mean unclamped estimate = 14.96 minutes, 76.2% under 5 minutes, P95 = 92.54 minutes
+**Result**: Mean unclamped estimate = 12.82 minutes, 82.8% under 5 minutes, P95 = 83.13 minutes
 
 **WHY this is robust**: The physics model independently confirms that self-reported absence corresponds to near-zero CO2 occupancy signal. The model does not simply memorize labels -- it derives occupancy from physical CO2 dynamics. When the room is genuinely empty, CO2 follows pure decay with no positive innovations, correctly producing near-zero estimates.
 
@@ -48,7 +48,7 @@ Where:
 
 **What was tested**: For each sensor, we re-estimated occupancy using parameters (phi, g) from the OTHER sensors instead of sensor-specific values.
 
-**Result**: Mean MAE between own and cross-sensor estimates = 50.19 minutes (relative MAE = 1.20), mean Spearman rank correlation = 0.217
+**Result**: Mean MAE between own and cross-sensor estimates = 49.03 minutes (relative MAE = 1.22), mean Spearman rank correlation = 0.334
 
 **WHY this is robust**: We use Spearman rank correlation (not Pearson) because generation rates vary 5-60 ppm/min across sensors due to real physical differences (room volume, ventilation system, occupant metabolic rate). Absolute agreement is not expected — but rank preservation shows the methodology generalizes: blocks that have high occupancy with sensor-specific params also rank high with cross-sensor params. The self-normalizing estimator (50% data-driven, 50% physics-based scaling) inherently adapts to each sensor's CO2 dynamics.
 
@@ -59,13 +59,13 @@ Where:
 | phi | Mean Est. Minutes |
 |-----|-------------------|
 
-| 0.90 | 105.7 |
-| 0.92 | 102.2 |
-| 0.94 | 97.5 |
-| 0.96 | 86.4 |
-| 0.97 | 78.6 |
-| 0.98 | 62.5 |
-| 0.99 | 37.9 |
+| 0.90 | 101.7 |
+| 0.92 | 99.3 |
+| 0.94 | 93.8 |
+| 0.96 | 83.5 |
+| 0.97 | 77.0 |
+| 0.98 | 62.4 |
+| 0.99 | 39.7 |
 
 **WHY this is robust**: Estimates change smoothly and predictably with phi. The fitted phi value comes from direct measurement of room air exchange, not arbitrary tuning. Small perturbations produce small changes in estimates.
 
@@ -76,12 +76,12 @@ Where:
 | Multiplier | Mean Est. Minutes |
 |------------|-------------------|
 
-| 0.50 | 82.4 |
-| 0.75 | 68.8 |
-| 1.00 | 59.0 |
-| 1.25 | 52.7 |
-| 1.50 | 48.3 |
-| 2.00 | 44.2 |
+| 0.50 | 83.1 |
+| 0.75 | 69.9 |
+| 1.00 | 60.2 |
+| 1.25 | 53.6 |
+| 1.50 | 49.3 |
+| 2.00 | 44.1 |
 
 **WHY this is robust**: The relationship between generation rate and estimates is approximately inversely proportional (doubling g roughly halves estimates), which is physically expected. This predictable behavior means uncertainty in g translates linearly to uncertainty in estimates -- no chaotic sensitivity.
 
@@ -91,11 +91,11 @@ Where:
 
 - n_blocks_label0: 239.0
 - n_blocks_label1: 535.0
-- label1_mean_uncertainty_width: 78.2
-- label1_median_uncertainty_width: 48.8
-- pct_high_confidence: 44.3
-- pct_medium_confidence: 6.9
-- pct_low_confidence: 48.8
+- label1_mean_uncertainty_width: 75.1
+- label1_median_uncertainty_width: 44.4
+- pct_high_confidence: 47.9
+- pct_medium_confidence: 3.2
+- pct_low_confidence: 49.0
 - corr_width_vs_data_minutes: 0.2
 
 **WHY this is robust**: Monte Carlo uncertainty propagation (N=200 samples) captures the full effect of parameter uncertainty on estimates. Blocks with more data and better-constrained parameters correctly receive tighter intervals.
@@ -106,8 +106,8 @@ Where:
 
 |-----------|----------|-------------|------------------|
 
-| shared | 138 | 37.6 | 63.3 |
-| single | 397 | 68.9 | 83.4 |
+| shared | 138 | 35.0 | 55.1 |
+| single | 397 | 70.2 | 82.0 |
 
 **WHY this is robust**: Shared rooms appropriately show wider uncertainty because CO2 is a room-level signal that cannot distinguish individual occupants. The model correctly quantifies this added ambiguity rather than producing overconfident estimates.
 
