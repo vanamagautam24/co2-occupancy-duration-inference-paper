@@ -1113,6 +1113,26 @@ Stress     & extra noise     & 120 & 24 & 27.6 & $-21.5$ & 81.2 & 100.0 & 100.0 
 This validation is ``model-matched'' in the sense that both injection and estimation use the same AR(1) model form.  The stress tests partially address this limitation by perturbing generation rate, decay parameter, baseline level, and noise, but the fundamental model structure remains matched.  A fully model-free external validation would require minute-level ground truth, which was not available in this study.
 
 % -----------------------------------------------------------------------------
+\subsection{Mechanistic note: why innovation-only low-$g$ rescue was rejected}
+% -----------------------------------------------------------------------------
+
+An optional evidence-gated innovation-only low-$g$ rescue was implemented and evaluated as an experimental extension (archived repository artifact: \texttt{research\_outputs/reports/innovation\_rescue\_experiment.md}). It improved one targeted stress case ($g\times0.7$) but degraded empty-room specificity and cross-sensor stability, so it is not used in the final estimator.
+
+The failure mode is explained by a simple AR(1) mismatch identity. In a truly empty block with effective decay $\phi_{\text{true}}$,
+\begin{equation}
+E_t = \phi_{\text{true}}E_{t-1} + \varepsilon_t.
+\end{equation}
+If innovations are computed with $\hat{\phi}$, then
+\begin{equation}
+y_t = E_t - \hat{\phi}E_{t-1}
+= (\phi_{\text{true}}-\hat{\phi})E_{t-1} + \varepsilon_t.
+\label{eq:innov_mismatch_identity}
+\end{equation}
+When $\phi_{\text{true}}>\hat{\phi}$ and start-of-block excess is high (carryover), the deterministic term $(\phi_{\text{true}}-\hat{\phi})E_{t-1}$ is positive for many minutes, so summed innovation evidence can appear occupancy-like even in empty blocks. This leakage scales approximately linearly with block length and excess level, while the significance threshold scales with $\sqrt{m_b}$, making false ``strong evidence'' possible in high-carryover empty blocks.
+
+This mechanism matches the empirical behavior of the experimental rescue path: semisynthetic $g\times0.7$ improved, but C1/C2 and OOS empty-room diagnostics degraded. The final method therefore keeps the innovation gate/cap as a specificity control but does not use innovation-only upward rescue in production estimates.
+
+% -----------------------------------------------------------------------------
 \subsection{Strengths of the approach}
 % -----------------------------------------------------------------------------
 
