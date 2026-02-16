@@ -1,0 +1,5 @@
+* Physics-based CO2 method estimates occupied minutes within 4-hour blocks
+* No minute-level ground truth is required for calibration
+* All independent validation criteria pass, including temporal OOS checks
+* Monte Carlo uncertainty includes parameter and structural mismatch priors
+* Open code and reproducible outputs are provided in the repository

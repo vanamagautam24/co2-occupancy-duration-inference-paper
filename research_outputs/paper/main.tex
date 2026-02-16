@@ -49,7 +49,7 @@
              country={USA}}
 
 \begin{abstract}
-Estimating how long occupants spend in their rooms is valuable for understanding indoor environmental exposure, energy use, and well-being in residential buildings. While CO\textsubscript{2} concentration is widely used as a proxy for occupancy detection (present/absent), estimating \emph{duration} of occupancy within time blocks remains an open challenge. We present a physics-based method that infers occupied minutes within four-hour blocks from indoor CO\textsubscript{2} measurements in university dormitory rooms. The method fits an autoregressive AR(1) model to each sensor's CO\textsubscript{2} time series, applies carryover-aware block correction, calibrates block-level excess CO\textsubscript{2} against per-sensor empty-room behavior, and converts the calibrated signal to occupied minutes using finite-window mass balance physics. Monte Carlo propagation of parameter uncertainty plus structural-mismatch priors yields 80\% credible intervals for each estimate. We validate the method on 12~sensors monitoring 24~subjects across 774~four-hour blocks over 68~days. All four independent evaluation criteria---covering cross-sensor generalizability (E1--E2), parameter sensitivity (E3), and uncertainty informativeness (E4)---are satisfied. Two calibration diagnostics used to tune the empty-room floor are met by construction, and their temporal out-of-sample counterparts also pass under relaxed criteria. A semisynthetic validation---injecting known occupancy patterns into real empty-room CO\textsubscript{2} data with model-mismatch stress tests---provides partial external validation of duration recovery accuracy, with underestimation under strong mismatch explicitly quantified. Comparison against threshold, slope, and fused-lasso baseline methods demonstrates that the block-excess approach achieves superior empty-room specificity. The method requires no labeled minute-level training data, using only CO\textsubscript{2} measurements and binary block-level presence labels (present/absent) to define calibration periods, and runs in under one minute on standard hardware.
+Estimating how long occupants spend in their rooms is valuable for understanding indoor environmental exposure, energy use, and well-being in residential buildings. While CO\textsubscript{2} concentration is widely used as a proxy for occupancy detection (present/absent), estimating \emph{duration} of occupancy within time blocks remains an open challenge. We present a physics-based method that infers occupied minutes within four-hour blocks from indoor CO\textsubscript{2} measurements in university dormitory rooms. The method fits an autoregressive AR(1) model to each sensor's CO\textsubscript{2} time series, applies carryover-aware block correction, calibrates block-level excess CO\textsubscript{2} against per-sensor empty-room behavior, and converts the calibrated signal to occupied minutes using finite-window mass balance physics. Monte Carlo propagation of parameter uncertainty plus structural-mismatch priors yields 80\% credible intervals for each estimate. We validate the method on 12~sensors monitoring 24~subjects across 774~four-hour blocks over 68~days. All four independent evaluation criteria, covering cross-sensor generalizability (E1--E2), parameter sensitivity (E3), and uncertainty informativeness (E4), are satisfied. Two calibration diagnostics used to tune the empty-room floor are met by construction, and their temporal out-of-sample counterparts also pass under relaxed criteria. A semisynthetic validation, injecting known occupancy patterns into real empty-room CO\textsubscript{2} data with model-mismatch stress tests, provides partial external validation of duration recovery accuracy, with underestimation under strong mismatch explicitly quantified. Comparison against threshold, slope, and fused-lasso baseline methods demonstrates that the block-excess approach achieves superior empty-room specificity. The method requires no labeled minute-level training data, using only CO\textsubscript{2} measurements and binary block-level presence labels (present/absent) to define calibration periods, and runs in under one minute on standard hardware.
 \end{abstract}
 
 \begin{keyword}
@@ -63,9 +63,9 @@ occupancy duration \sep CO\textsubscript{2} inference \sep indoor air quality \s
 \label{sec:introduction}
 % =============================================================================
 
-Understanding how long building occupants spend in particular spaces is fundamental to indoor environmental quality (IEQ) assessment, energy management, and occupant well-being research \cite{frontczak2012literature}. In residential buildings---particularly university dormitories where students live, study, and sleep---the duration of room occupancy directly determines cumulative exposure to indoor pollutants, thermal conditions, and lighting environments \cite{daisey2003indoor, fisk2017association}. Occupancy-driven energy models further rely on accurate time-use data to predict heating, cooling, and ventilation loads \cite{yan2015occupant, dong2018modeling}.
+Understanding how long building occupants spend in particular spaces is fundamental to indoor environmental quality (IEQ) assessment, energy management, and occupant well-being research \cite{frontczak2012literature}. In residential buildings, particularly university dormitories where students live, study, and sleep, the duration of room occupancy directly determines cumulative exposure to indoor pollutants, thermal conditions, and lighting environments \cite{daisey2003indoor, fisk2017association}. Occupancy-driven energy models further rely on accurate time-use data to predict heating, cooling, and ventilation loads \cite{yan2015occupant, dong2018modeling}.
 
-While numerous methods exist for binary occupancy detection (present vs.\ absent), far fewer address the more informative question of \emph{how long} an occupant was present during a given time window. Binary detection from CO\textsubscript{2} thresholds is well established \cite{candanedo2016accurate, jin2018virtual, chen2018building}, and multi-sensor fusion approaches combining CO\textsubscript{2} with temperature, humidity, and light have pushed detection accuracy above 95\% \cite{yang2014systematic}. Machine learning approaches---including random forests, support vector machines, and deep recurrent networks---have improved detection accuracy further \cite{masood2019occupancy, chen2020environmental, tekler2020occupancy} but typically still target binary or count outcomes rather than continuous duration. Bayesian and state-space formulations have been applied to CO\textsubscript{2}-based occupancy counting \cite{ebadat2015estimation, wang2018inferring}, yet these also estimate the number of people present rather than how long they stay.
+While numerous methods exist for binary occupancy detection (present vs.\ absent), far fewer address the more informative question of \emph{how long} an occupant was present during a given time window. Binary detection from CO\textsubscript{2} thresholds is well established \cite{candanedo2016accurate, jin2018virtual, chen2018building}, and multi-sensor fusion approaches combining CO\textsubscript{2} with temperature, humidity, and light have pushed detection accuracy above 95\% \cite{yang2014systematic}. Machine learning approaches, including random forests, support vector machines, and deep recurrent networks, have improved detection accuracy further \cite{masood2019occupancy, chen2020environmental, tekler2020occupancy} but typically still target binary or count outcomes rather than continuous duration. Bayesian and state-space formulations have been applied to CO\textsubscript{2}-based occupancy counting \cite{ebadat2015estimation, wang2018inferring}, yet these also estimate the number of people present rather than how long they stay.
 
 CO\textsubscript{2} concentration is a particularly attractive proxy for occupancy in dormitory settings because it is noninvasive, inexpensive to measure continuously, and directly linked to human metabolic activity through respiration. The physics of indoor CO\textsubscript{2} are well understood: occupants generate CO\textsubscript{2} at rates proportional to their metabolic activity (\SIrange{12}{20}{L/h} per person at rest \cite{persily2017carbon}), while ventilation removes CO\textsubscript{2} at a rate proportional to the concentration difference between indoor and outdoor air \cite{ashrae2022standard}. This mass-balance relationship creates a direct, physics-based link between CO\textsubscript{2} dynamics and occupancy patterns and underpins demand-controlled ventilation strategies \cite{lu2010design}.
 
@@ -75,7 +75,7 @@ In this paper, we present a method that addresses these challenges by operating 
 
 The contributions of this paper are:
 \begin{enumerate}
-    \item A physics-based method for estimating occupancy \emph{duration} (not just presence/absence) from CO\textsubscript{2}, requiring no labeled minute-level training data---only binary block-level presence labels used to define present/absent calibration periods.
+    \item A physics-based method for estimating occupancy \emph{duration} (not just presence/absence) from CO\textsubscript{2}, requiring no labeled minute-level training data, only binary block-level presence labels used to define present/absent calibration periods.
     \item Per-sensor adaptive calibration that accounts for room-specific ventilation, sensor placement, and residual CO\textsubscript{2} characteristics.
     \item A noise-calibrated innovation significance gate with an explicit block-specific minimum detectable duration diagnostic $M_\text{min}^{(b)}$.
     \item Full Monte Carlo uncertainty quantification providing 80\% credible intervals for each block-level duration estimate.
@@ -222,7 +222,7 @@ The generation rate $g$ represents the CO\textsubscript{2} emission rate of the 
     \label{eq:steady_state}
 \end{equation}
 
-For example, with $g = \SI{15}{ppm/min}$ and $\phi = 0.995$, the steady-state excess would be $15/0.005 = \SI{3000}{ppm}$ above baseline---though in practice, occupancy is intermittent and steady state is rarely achieved.
+For example, with $g = \SI{15}{ppm/min}$ and $\phi = 0.995$, the steady-state excess would be $15/0.005 = \SI{3000}{ppm}$ above baseline; in practice, occupancy is intermittent and steady state is rarely achieved.
 
 The innovation noise $\sigma_\varepsilon$ captures sensor measurement error, short-term CO\textsubscript{2} fluctuations from sources other than occupancy (cooking, open windows, corridor air mixing), and model misspecification.
 
@@ -751,7 +751,7 @@ Cross-sensor performance varies considerably across rooms. Several sensors retai
 
 \subsubsection{Sensitivity analysis}
 
-Fig.~\ref{fig:sensitivity_phi} shows the sensitivity of estimated duration to the decay parameter $\phi$ across the range $[0.90, 0.99]$. The mean estimated duration varies from \SI{39.7}{min} ($\phi = 0.99$) to \SI{101.7}{min} ($\phi = 0.90$), compared to \SI{77.0}{min} at the default $\phi = 0.97$. The maximum percentage change relative to the default is 48.4\% (at $\phi = 0.99$)---well within the 200\% criterion. The monotonic decrease with increasing $\phi$ is physically intuitive: higher $\phi$ (slower decay) produces larger normalization scale, so a given observed excess corresponds to a smaller occupied fraction.
+Fig.~\ref{fig:sensitivity_phi} shows the sensitivity of estimated duration to the decay parameter $\phi$ across the range $[0.90, 0.99]$. The mean estimated duration varies from \SI{39.7}{min} ($\phi = 0.99$) to \SI{101.7}{min} ($\phi = 0.90$), compared to \SI{77.0}{min} at the default $\phi = 0.97$. The maximum percentage change relative to the default is 48.4\% (at $\phi = 0.99$), well within the 200\% criterion. The monotonic decrease with increasing $\phi$ is physically intuitive: higher $\phi$ (slower decay) produces larger normalization scale, so a given observed excess corresponds to a smaller occupied fraction.
 
 \begin{figure}[htbp]
     \centering
@@ -862,7 +862,7 @@ Subject & Sensor & Days & Mean & Median & SD & P10 & P90 \\
 46 & 20251591 & 7 & 47.2 & 24.4 & 78.5 & 26.6 & 113.1 \\
 73 & 22165978 & 6 & 6.8 & 0.0 & 16.7 & 0.0 & 16.7 \\
 95 & 22165978 & 6 & 6.8 & 0.0 & 16.7 & 0.0 & 16.7 \\
-42 & 20251591 & 1 & 0.0 & 0.0 & --- & 0.0 & 0.0 \\
+42 & 20251591 & 1 & 0.0 & 0.0 & NA & 0.0 & 0.0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -996,7 +996,7 @@ Because no ground-truth occupied minutes are available, we constructed a semisyn
     \label{fig:semisynthetic}
 \end{figure}
 
-% Semisynthetic numeric summary table — values from pipeline
+% Semisynthetic numeric summary table - values from pipeline
 \begin{table}[htbp]
 \centering
 \caption{Semisynthetic validation accuracy by scenario.  MAE: mean absolute error; Bias: mean signed error (positive = overestimation); P90: 90th percentile of absolute error.  All values in minutes.  Stress tests inject with parameters that differ from those used by the estimator.}
@@ -1032,7 +1032,7 @@ This validation is ``model-matched'' in the sense that both injection and estima
 
 The block-level excess method has several properties that make it well suited for CO\textsubscript{2}-based duration estimation in residential settings.
 
-\textbf{Physics-based with minimal calibration.} The method is grounded in well-understood CO\textsubscript{2} mass balance physics (Eq.~\ref{eq:ar1}) and requires only binary block-level presence labels to define absent/present calibration periods---not labeled duration data---for per-sensor adaptation. This makes it deployable in settings where binary presence/absence labels are available (e.g., from access card data or simple surveys) but minute-level duration ground truth is not.
+\textbf{Physics-based with minimal calibration.} The method is grounded in well-understood CO\textsubscript{2} mass balance physics (Eq.~\ref{eq:ar1}) and requires only binary block-level presence labels to define absent/present calibration periods, not labeled duration data, for per-sensor adaptation. This makes it deployable in settings where binary presence/absence labels are available (e.g., from access card data or simple surveys) but minute-level duration ground truth is not.
 
 \textbf{Block-level averaging exploits the SNR advantage.} By working at the four-hour block level rather than the minute level, the method aggregates the cumulative CO\textsubscript{2} signal over a long window. While the AR(1) autocorrelation ($\hat{\phi} \approx 0.995$) limits the effective noise reduction below the i.i.d.\ $\sqrt{n}$ rate, the block-level approach still transforms an intractable minute-level estimation problem into a tractable one. We verified this empirically by implementing a minute-level fused lasso deconvolution approach \cite{tibshirani2005sparsity} that attempts to reconstruct the occupancy signal at one-minute resolution. The fused lasso baseline underperformed the proposed method on empty-room specificity (Section~\ref{sec:discussion}, Fig.~\ref{fig:baseline_comparison}), consistent with the fundamental SNR limitation: at $\phi \approx 0.995$, the minute-level occupancy innovation (\SIrange{5}{60}{ppm}) is comparable to the noise standard deviation (\SIrange{5}{40}{ppm}), yielding SNR of order unity. Block-level aggregation overcomes this by integrating the occupancy-driven excess over 240 minutes.
 
@@ -1066,7 +1066,7 @@ The closest methodological precedent is the CO\textsubscript{2} mass-balance inv
 
 The block-level temporal resolution of our method contrasts with the minute-level approaches above but aligns with the time-use survey literature, where occupancy is commonly reported in multi-hour blocks \cite{wilke2013probabilistic, richardson2010domestic}. Our approach bridges these scales: it uses minute-level CO\textsubscript{2} data as input but produces outputs at the temporal resolution of self-reported surveys, enabling direct comparison with questionnaire-based occupancy data.
 
-Our validation framework---distinguishing calibration diagnostics from independent evaluation criteria---is, to our knowledge, the first structured approach to validating CO\textsubscript{2}-based duration estimation. We hope it provides a useful benchmark for future methods.
+Our validation framework, which distinguishes calibration diagnostics from independent evaluation criteria, is, to our knowledge, the first structured approach to validating CO\textsubscript{2}-based duration estimation. We hope it provides a useful benchmark for future methods.
 
 % =============================================================================
 \section{Conclusions}
@@ -1075,9 +1075,9 @@ Our validation framework---distinguishing calibration diagnostics from independe
 
 We have presented a physics-based method for inferring occupancy duration from indoor CO\textsubscript{2} concentrations in university dormitory rooms. The method operates at the four-hour block level, aggregating the cumulative CO\textsubscript{2} signal over long windows to overcome the low signal-to-noise ratio inherent in minute-level CO\textsubscript{2} data. Per-sensor empty-room calibration and a self-normalizing scale handle the heterogeneity of room ventilation and sensor characteristics without requiring uniform physics assumptions.
 
-Applied to 12~sensors monitoring 24~participants over 68~days, all four independent evaluation criteria are satisfied (cross-sensor generalizability E1--E2, parameter sensitivity E3, and uncertainty informativeness E4). The two calibration diagnostics used to select the empty-room floor multiplier are met by construction, and both temporal out-of-sample diagnostics also pass under relaxed criteria (C1-OOS \SI{19.9}{min}, C2-OOS 82.5\%). Robust OOS diagnostics confirm residual error is dominated by a small high-carryover tail rather than typical-case failure. A semisynthetic validation---injecting known occupancy patterns with model-mismatch stress tests into real empty-room data---provides partial external validation of duration recovery; with structural-mismatch priors in Monte Carlo, overall nominal 80\% interval coverage is 81.3\% while still revealing residual stress-regime mismatch in adversarial conditions. Comparison against threshold, slope, and fused-lasso baselines illustrates the trade-offs of simpler heuristics and confirms that the block-excess approach achieves the calibration targets for empty-room specificity.
+Applied to 12~sensors monitoring 24~participants over 68~days, all four independent evaluation criteria are satisfied (cross-sensor generalizability E1--E2, parameter sensitivity E3, and uncertainty informativeness E4). The two calibration diagnostics used to select the empty-room floor multiplier are met by construction, and both temporal out-of-sample diagnostics also pass under relaxed criteria (C1-OOS \SI{19.9}{min}, C2-OOS 82.5\%). Robust OOS diagnostics confirm residual error is dominated by a small high-carryover tail rather than typical-case failure. A semisynthetic validation, injecting known occupancy patterns with model-mismatch stress tests into real empty-room data, provides partial external validation of duration recovery; with structural-mismatch priors in Monte Carlo, overall nominal 80\% interval coverage is 81.3\% while still revealing residual stress-regime mismatch in adversarial conditions. Comparison against threshold, slope, and fused-lasso baselines illustrates the trade-offs of simpler heuristics and confirms that the block-excess approach achieves the calibration targets for empty-room specificity.
 
-The method is computationally efficient (under one minute on standard hardware), requires no supervised training data---only binary block-level presence labels for calibration---and provides full Monte Carlo uncertainty quantification. It is applicable to any residential or office setting where CO\textsubscript{2} is measured continuously and binary presence/absence labels are available for calibration.
+The method is computationally efficient (under one minute on standard hardware), requires no supervised training data, only binary block-level presence labels for calibration, and provides full Monte Carlo uncertainty quantification. It is applicable to any residential or office setting where CO\textsubscript{2} is measured continuously and binary presence/absence labels are available for calibration.
 
 Future work should address minute-level temporal resolution (potentially through complementary sensor fusion), multi-occupant disaggregation in shared rooms, and validation of the CO\textsubscript{2}-equivalent duration metric using either wearable metabolic trackers or physics-based digital twins (e.g., mass-balance engines such as CONTAM) where generation schedules and air exchange rates are known.
 
@@ -1089,13 +1089,21 @@ Future work should address minute-level temporal resolution (potentially through
 
 The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
+\section*{Ethics approval and consent to participate}
+
+This study was reviewed and approved by the Institutional Review Board (IRB ID: \texttt{[TO\_BE\_ADDED]}). All participants provided informed consent before enrollment. Data were de-identified before analysis.
+
+\section*{CRediT authorship contribution statement}
+
+Gautam Author: Conceptualization, Methodology, Software, Validation, Formal analysis, Investigation, Data curation, Visualization, Writing - original draft, Writing - review and editing.
+
 \section*{Acknowledgments}
 
 The authors thank the CRIPT research team for data collection and the dormitory residents who participated in the study.
 
 \section*{Data availability}
 
-The data and code supporting this study are available from the corresponding author upon reasonable request.
+Code, derived results tables, and figures are available at \url{https://github.com/vanamagautam24/co2-occupancy-duration-inference-paper}. Raw room-level survey-linked data are not publicly released because of participant privacy and IRB constraints; de-identified aggregate outputs needed to reproduce reported tables and figures are included in the repository.
 
 \begin{thebibliography}{24}
 
@@ -1121,7 +1129,7 @@ Yan, D., O'Brien, W., Hong, T., Feng, X., Burak Gunay, H., Tahmasebi, F., Mahdav
 
 \bibitem{dong2018modeling}
 Dong, B., Yan, D., Li, Z., Jin, Y., Feng, X., Fontenot, H., 2018.
-\newblock Modeling occupancy and behavior for better building design and operation---a critical review.
+\newblock Modeling occupancy and behavior for better building design and operation: a critical review.
 \newblock \emph{Building Simulation} 11~(5), 899--921.
 
 \bibitem{candanedo2016accurate}
