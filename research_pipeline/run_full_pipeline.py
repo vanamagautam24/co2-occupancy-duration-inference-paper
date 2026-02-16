@@ -3000,7 +3000,8 @@ def fig13_semisynthetic_validation(results_df: pl.DataFrame, out_path: Path,
     if results_df.height == 0 or results_df["scenario"][0] == "none":
         return
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+    # Stack panels vertically to keep text readable in journal page width.
+    fig, axes = plt.subplots(2, 1, figsize=(7.2, 9.2))
 
     true_min = results_df["true_minutes"].to_numpy()
     est_min = results_df["estimated_minutes"].to_numpy()
@@ -3018,7 +3019,7 @@ def fig13_semisynthetic_validation(results_df: pl.DataFrame, out_path: Path,
     axes[0].set_xlabel("True Occupied Minutes")
     axes[0].set_ylabel("Estimated Occupied Minutes")
     axes[0].set_title("(a) Semisynthetic: Estimated vs True")
-    axes[0].legend(fontsize=9)
+    axes[0].legend(fontsize=10)
     axes[0].set_xlim(0, lim)
     axes[0].set_ylim(0, lim)
 
@@ -3041,7 +3042,7 @@ def fig13_semisynthetic_validation(results_df: pl.DataFrame, out_path: Path,
     axes[1].set_ylabel("Absolute Error (minutes)")
     axes[1].set_title("(b) Error Distribution by Duration")
 
-    fig.tight_layout()
+    fig.tight_layout(pad=1.0)
     fig.savefig(out_path, format=fmt, dpi=dpi)
     plt.close(fig)
 
@@ -3059,7 +3060,8 @@ def fig14_baseline_comparison(comparison_df: pl.DataFrame, out_path: Path,
     v2 = comparison_df["V2_pct_under_5min"].to_numpy()
     l1_mean = comparison_df["mean_label1_min"].to_numpy()
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    # Use a tall stacked layout for readability in the paper PDF.
+    fig, axes = plt.subplots(3, 1, figsize=(7.4, 11.2))
     x = np.arange(len(methods))
     bar_colors = [C_TEAL if m == "block_excess" else C_STEEL for m in methods]
 
@@ -3067,28 +3069,28 @@ def fig14_baseline_comparison(comparison_df: pl.DataFrame, out_path: Path,
     axes[0].bar(x, v1, color=bar_colors, alpha=0.85, edgecolor="white")
     axes[0].axhline(15, color="red", linestyle="--", linewidth=1, label="Criterion (<15)")
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(methods, rotation=30, ha="right", fontsize=9)
+    axes[0].set_xticklabels(methods, rotation=20, ha="right", fontsize=10)
     axes[0].set_ylabel("Mean Minutes (label=0)")
     axes[0].set_title("(a) V1: Empty-Room Estimate")
-    axes[0].legend(fontsize=8)
+    axes[0].legend(fontsize=10)
 
     # V2: % under 5 min (label=0) — higher is better
     axes[1].bar(x, v2, color=bar_colors, alpha=0.85, edgecolor="white")
     axes[1].axhline(60, color="red", linestyle="--", linewidth=1, label="Criterion (>60%)")
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(methods, rotation=30, ha="right", fontsize=9)
+    axes[1].set_xticklabels(methods, rotation=20, ha="right", fontsize=10)
     axes[1].set_ylabel("% Blocks < 5 min (label=0)")
     axes[1].set_title("(b) V2: Empty-Room Specificity")
-    axes[1].legend(fontsize=8)
+    axes[1].legend(fontsize=10)
 
     # Mean label=1 minutes
     axes[2].bar(x, l1_mean, color=bar_colors, alpha=0.85, edgecolor="white")
     axes[2].set_xticks(x)
-    axes[2].set_xticklabels(methods, rotation=30, ha="right", fontsize=9)
+    axes[2].set_xticklabels(methods, rotation=20, ha="right", fontsize=10)
     axes[2].set_ylabel("Mean Estimated Minutes (label=1)")
     axes[2].set_title("(c) Occupied-Block Estimates")
 
-    fig.tight_layout()
+    fig.tight_layout(pad=1.0)
     fig.savefig(out_path, format=fmt, dpi=dpi)
     plt.close(fig)
 
@@ -3127,7 +3129,8 @@ def fig15_detectability(block_est: pl.DataFrame, out_path: Path, fmt: str, dpi: 
     mmin = room_level["m_min_detectable"].to_numpy()
     est = room_level["estimated_occupied_minutes"].to_numpy()
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    # Stack panels vertically to avoid cramped labels after PDF scaling.
+    fig, axes = plt.subplots(2, 1, figsize=(7.2, 9.2))
 
     # (a) Distribution of minimum detectable minutes.
     bins = np.arange(0, max(121, int(np.nanmax(mmin)) + 10), 5)
@@ -3137,7 +3140,7 @@ def fig15_detectability(block_est: pl.DataFrame, out_path: Path, fmt: str, dpi: 
     axes[0].set_xlabel(r"$M_{\min}^{(b)}$ (minutes)")
     axes[0].set_ylabel("Count")
     axes[0].set_title("(a) Detectability Threshold Distribution")
-    axes[0].legend(fontsize=9)
+    axes[0].legend(fontsize=10)
 
     # (b) Relationship between detectability threshold and estimates.
     axes[1].scatter(mmin, est, alpha=0.35, s=18, color=C_NAVY, edgecolors="none")
@@ -3147,7 +3150,7 @@ def fig15_detectability(block_est: pl.DataFrame, out_path: Path, fmt: str, dpi: 
     axes[1].set_ylabel("Estimated minutes (label=1)")
     axes[1].set_title("(b) Estimated Duration vs Detectability")
 
-    fig.tight_layout()
+    fig.tight_layout(pad=1.0)
     fig.savefig(out_path, format=fmt, dpi=dpi)
     plt.close(fig)
 
@@ -3167,25 +3170,26 @@ def fig16_ablation_ladder(ablation_df: pl.DataFrame, out_path: Path, fmt: str, d
     c2_oos = ab["C2_OOS_pct_under_5min"].to_numpy()
     x = np.arange(len(labels))
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    # Stack panels vertically to improve readability at manuscript scale.
+    fig, axes = plt.subplots(2, 1, figsize=(7.2, 9.2))
 
     axes[0].bar(x, c1_oos, color=C_STEEL, alpha=0.85, edgecolor="white")
     axes[0].axhline(20, color="red", linestyle="--", linewidth=1.2, label="Criterion (<20)")
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(labels, fontsize=8)
+    axes[0].set_xticklabels(labels, fontsize=10)
     axes[0].set_ylabel("C1-OOS mean unclamped minutes")
     axes[0].set_title("(a) C1-OOS Across Ablation Steps")
-    axes[0].legend(fontsize=8)
+    axes[0].legend(fontsize=10)
 
     axes[1].bar(x, c2_oos, color=C_TEAL, alpha=0.85, edgecolor="white")
     axes[1].axhline(50, color="red", linestyle="--", linewidth=1.2, label="Criterion (>50%)")
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(labels, fontsize=8)
+    axes[1].set_xticklabels(labels, fontsize=10)
     axes[1].set_ylabel("C2-OOS % under 5 min")
     axes[1].set_title("(b) C2-OOS Across Ablation Steps")
-    axes[1].legend(fontsize=8)
+    axes[1].legend(fontsize=10)
 
-    fig.tight_layout()
+    fig.tight_layout(pad=1.0)
     fig.savefig(out_path, format=fmt, dpi=dpi)
     plt.close(fig)
 
@@ -3525,16 +3529,16 @@ def setup_matplotlib():
     import matplotlib.pyplot as plt
     plt.rcParams.update({
         "font.family": "serif",
-        "font.size": 11,
-        "axes.labelsize": 12,
-        "axes.titlesize": 13,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10,
-        "legend.fontsize": 10,
+        "font.size": 12,
+        "axes.labelsize": 13,
+        "axes.titlesize": 14,
+        "xtick.labelsize": 11,
+        "ytick.labelsize": 11,
+        "legend.fontsize": 11,
         "figure.dpi": 300,
         "savefig.dpi": 300,
         "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.1,
+        "savefig.pad_inches": 0.05,
     })
     return plt
 
@@ -3763,7 +3767,8 @@ def fig04_sensor_params(fits: list[SensorFit], cfg: Config, out_path: Path, fmt:
 
 def fig05_uncertainty(block_est: pl.DataFrame, out_path: Path, fmt: str, dpi: int):
     plt = setup_matplotlib()
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+    # Use one panel per row to avoid tiny labels in print/PDF.
+    fig, axes = plt.subplots(3, 1, figsize=(7.4, 11.2))
 
     label1 = block_est.filter(pl.col("present") == 1)
     width = label1["uncertainty_width"].to_numpy()
@@ -3775,7 +3780,7 @@ def fig05_uncertainty(block_est: pl.DataFrame, out_path: Path, fmt: str, dpi: in
     axes[0].set_xlabel("Uncertainty Width (p90-p10, minutes)")
     axes[0].set_ylabel("Count")
     axes[0].set_title("(a) Uncertainty Distribution")
-    axes[0].legend(fontsize=8)
+    axes[0].legend(fontsize=10)
 
     # Scatter: estimate vs uncertainty
     axes[1].scatter(est, width, alpha=0.4, s=15, color=C_NAVY)
@@ -3798,7 +3803,7 @@ def fig05_uncertainty(block_est: pl.DataFrame, out_path: Path, fmt: str, dpi: in
     axes[2].set_ylabel("Estimated Minutes")
     axes[2].set_title("(c) Estimates by Confidence Level")
 
-    fig.tight_layout()
+    fig.tight_layout(pad=1.0)
     fig.savefig(out_path, format=fmt, dpi=dpi)
     plt.close(fig)
 

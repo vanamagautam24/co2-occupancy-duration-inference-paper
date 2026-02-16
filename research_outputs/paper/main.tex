@@ -591,7 +591,7 @@ The right-skewed distribution of label = 1 estimates (Fig.~\ref{fig:histogram}) 
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.9\textwidth]{figures/fig01_histogram_by_label.pdf}
+    \includegraphics[width=\textwidth]{figures/fig01_histogram_by_label.pdf}
     \caption{Distribution of estimated occupancy duration by label. Label = 0 blocks cluster at zero minutes. Label = 1 blocks show a right-skewed distribution with many low-duration blocks and a tail extending to 240 minutes.}
     \label{fig:histogram}
 \end{figure}
@@ -649,7 +649,7 @@ Fig.~\ref{fig:uncertainty} shows the distribution of uncertainty widths (80\% cr
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/fig05_uncertainty_analysis.pdf}
+    \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/fig05_uncertainty_analysis.pdf}
     \caption{Uncertainty analysis of block-level duration estimates. Distribution of 80\% credible interval widths across all occupied (label = 1) blocks.}
     \label{fig:uncertainty}
 \end{figure}
@@ -667,7 +667,7 @@ where $m_b$ is the number of valid one-minute innovation pairs in block $b$. Acr
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig15_detectability_thresholds.pdf}
+    \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/fig15_detectability_thresholds.pdf}
     \caption{Detectability diagnostics from the innovation-noise gate. (a) Distribution of block-specific minimum detectable duration $M_{\min}^{(b)}$. (b) Relationship between $M_{\min}^{(b)}$ and estimated duration for label = 1 blocks.}
     \label{fig:detectability}
 \end{figure}
@@ -711,7 +711,7 @@ A3 & + Two-regime floor (final) & 10.5 & 83.1 & 19.9 & 82.5 & 68.2 & 58.1 \\
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig16_ablation_ladder.pdf}
+    \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/fig16_ablation_ladder.pdf}
     \caption{Ablation ladder across method variants. (a) C1-OOS mean unclamped minutes (lower is better, criterion $<20$). (b) C2-OOS percentage under \SI{5}{min} (higher is better, criterion $>50\%$).}
     \label{fig:ablation}
 \end{figure}
@@ -724,7 +724,7 @@ Fig.~\ref{fig:baseline_comparison} compares the block-excess estimator against s
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig14_baseline_comparison.pdf}
+    \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/fig14_baseline_comparison.pdf}
     \caption{Comparison of duration estimation methods on empty-room specificity.  (a)~C1: mean estimated minutes for known-empty blocks (lower is better).  (b)~C2: percentage of empty blocks estimating under \SI{5}{min} (higher is better).  (c)~Mean estimated minutes for occupied blocks.  The block-excess method achieves the calibration targets for empty-room specificity; baselines illustrate the trade-offs of simpler heuristics.}
     \label{fig:baseline_comparison}
 \end{figure}
@@ -737,7 +737,7 @@ Because no ground-truth occupied minutes are available, we constructed a semisyn
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig13_semisynthetic_validation.pdf}
+    \includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{figures/fig13_semisynthetic_validation.pdf}
     \caption{Semisynthetic validation results.  (a)~Scatter plot of estimated vs.\ true injected occupied minutes.  Continuous scenarios (circles) cluster closer to the identity line than fragmented scenarios (triangles).  (b)~Distribution of absolute estimation error by true duration level.}
     \label{fig:semisynthetic}
 \end{figure}
