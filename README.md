@@ -77,6 +77,17 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 
 `N/A (descriptive)` means the metric is reported for interpretation (robustness/tail behavior), not used as a pass/fail criterion.
 
+## Submission Readiness (Building and Environment)
+- Main manuscript precheck: `submission/building_and_environment_precheck.md`
+- Current manuscript formatting profile:
+  - Abstract: 246 words
+  - Keywords: 6
+  - Figures in main manuscript: 9
+  - Tables in main manuscript: 4
+  - Total figures + tables: 13
+
+Descriptive analyses not essential for the core contribution remain in `research_outputs/` and are referenced from the manuscript as reproducible outputs.
+
 ## Semisynthetic CI Coverage (Latest Run)
 Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
 

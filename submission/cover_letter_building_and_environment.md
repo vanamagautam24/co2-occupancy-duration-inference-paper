@@ -16,6 +16,7 @@ The manuscript provides three primary contributions:
 3. A structured validation framework that separates calibration diagnostics from independent criteria, including temporal out-of-sample checks, cross-sensor generalization tests, sensitivity analysis, and semisynthetic stress testing.
 
 In the final model configuration, all predefined independent criteria and temporal out-of-sample diagnostics pass. The method remains computationally lightweight and requires no minute-level supervised training labels.
+The manuscript has been formatted for concise full-length submission (abstract under 250 words; 9 figures and 4 tables in the main text).
 
 This manuscript is original, has not been published previously, and is not under consideration elsewhere. All authors approve this submission.
 
