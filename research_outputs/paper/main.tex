@@ -729,25 +729,25 @@ Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, 
 \toprule
 Sensor ID & Room & $\hat{\phi}_\text{own}$ & $\hat{g}_\text{own}$ & $\hat{g}_\text{cross}$ & MAE & Rel.\ MAE & $\rho$ \\
 \midrule
-20233647 & Single & 0.992 & 18.9 & 19.2 & 67.6 & 2.00 & 0.39 \\
-20233665 & Single & 0.995 & 30.5 & 18.9 & 46.5 & 1.85 & 0.27 \\
-20233681 & Single & 0.970 & 60.0 & 18.9 & 90.5 & 0.54 & 0.07 \\
-20233685 & Single & 0.991 & 14.5 & 19.2 & 60.2 & 0.79 & 0.03 \\
-20251591 & Single & 0.987 & 11.9 & 19.2 & 46.0 & 1.15 & 0.15 \\
-22165976 & Shared & 0.995 & 16.3 & 19.2 & 67.3 & 0.69 & 0.10 \\
-22165978 & Single & 0.994 & 5.4 & 19.2 & 4.2 & 1.28 & 0.76 \\
-22165989 & Single & 0.995 & 22.8 & 18.9 & 47.5 & 1.79 & 0.44 \\
-22165990 & Single & 0.970 & 26.2 & 18.9 & 77.7 & 0.82 & 0.00 \\
-22165993 & Single & 0.986 & 30.2 & 18.9 & 60.4 & 1.25 & 0.31 \\
-22165994 & Shared & 0.987 & 7.7 & 19.2 & 23.1 & 1.16 & 0.58 \\
-22168412 & Shared & 0.984 & 19.2 & 18.9 & 19.5 & 1.46 & 0.40 \\
+20233647 & Single & 0.992 & 18.9 & 19.2 & 54.9 & 1.66 & 0.56 \\
+20233665 & Single & 0.995 & 30.5 & 18.9 & 45.4 & 2.10 & 0.38 \\
+20233681 & Single & 0.970 & 60.0 & 18.9 & 91.4 & 0.55 & 0.06 \\
+20233685 & Single & 0.991 & 14.5 & 19.2 & 61.7 & 0.84 & 0.17 \\
+20251591 & Single & 0.987 & 11.9 & 19.2 & 37.8 & 1.01 & 0.25 \\
+22165976 & Shared & 0.995 & 16.3 & 19.2 & 87.0 & 0.98 & -0.26 \\
+22165978 & Single & 0.994 & 5.4 & 19.2 & 2.7 & 1.22 & 0.76 \\
+22165989 & Single & 0.995 & 22.8 & 18.9 & 43.7 & 1.71 & 0.46 \\
+22165990 & Single & 0.970 & 26.2 & 18.9 & 65.9 & 0.74 & 0.21 \\
+22165993 & Single & 0.986 & 30.2 & 18.9 & 60.3 & 1.28 & 0.31 \\
+22165994 & Shared & 0.987 & 7.7 & 19.2 & 22.6 & 1.16 & 0.60 \\
+22168412 & Shared & 0.984 & 19.2 & 18.9 & 14.9 & 1.36 & 0.51 \\
 \midrule
 \multicolumn{5}{l}{Mean} & 50.9 & 1.22 & 0.334 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165994 with $\rho = 0.58$), while a subset remains weak (e.g., 20233681 with $\rho = 0.07$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.21 and IQR [0.81, 1.62], while Spearman $\rho$ has median 0.29 and IQR [0.09, 0.41]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
+Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165994 with $\rho = 0.60$), while a subset remains weak (e.g., 20233681 with $\rho = 0.06$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.19 and IQR [0.95, 1.44], while Spearman $\rho$ has median 0.34 and IQR [0.20, 0.52]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
 
 \subsubsection{Sensitivity analysis}
 
@@ -1046,7 +1046,7 @@ The block-level excess method has several properties that make it well suited fo
 
 \textbf{Block-level temporal resolution.} The method estimates total occupied minutes within four-hour blocks but does not resolve the temporal pattern of occupancy within each block. A block with 120 estimated minutes could correspond to two continuous hours or twelve 10-minute visits. Finer temporal resolution would require either higher SNR conditions (lower $\phi$, higher $g$) or complementary sensor modalities.
 
-\textbf{Self-reported ground truth limitations.} The occupancy labels are binary (present/absent for the whole block) and self-reported, introducing two limitations. First, we cannot validate the \emph{absolute accuracy} of duration estimates for label = 1 blocks since the true number of minutes is unknown. Validation instead relies on internal consistency (label = 0 sanity, LOO, sensitivity, semisynthetic stress tests). Second, self-report is subject to recall bias, potentially mislabeling some blocks. More fundamentally, in CO\textsubscript{2} mass-balance inversion without independent activity sensing, literal minutes and per-minute generation intensity are partially non-identifiable; the method should be interpreted as estimating a CO\textsubscript{2}-equivalent occupancy duration relative to the fitted reference generation rate.
+\textbf{Self-reported label limitations.} The occupancy labels are binary (present/absent for the whole block) and self-reported, introducing two limitations. First, we cannot validate the \emph{absolute accuracy} of duration estimates for label = 1 blocks since the true number of minutes is unknown. Validation instead relies on internal consistency (label = 0 sanity, LOO, sensitivity, semisynthetic stress tests). Second, self-report is subject to recall bias, potentially mislabeling some blocks. More fundamentally, in CO\textsubscript{2} mass-balance inversion without independent activity sensing, literal minutes and per-minute generation intensity are partially non-identifiable; the method should be interpreted as estimating a CO\textsubscript{2}-equivalent occupancy duration relative to the fitted reference generation rate.
 
 \textbf{Single-zone assumption.} The AR(1) model treats each room as a well-mixed single zone. In practice, CO\textsubscript{2} gradients exist within rooms, and sensor placement affects the measured concentration. This is partially captured by the per-sensor calibration but not explicitly modeled.
 
