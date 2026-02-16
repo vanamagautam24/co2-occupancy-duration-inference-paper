@@ -689,8 +689,8 @@ def _build_sensor_block_stats(
     cfg: Config,
 ) -> pl.DataFrame:
     """Build block-level features with carryover-aware corrections."""
-    phi_carry = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
-    phi_innov = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+    phi_carry = float(np.clip(fit.phi_hat, cfg.phi_min, cfg.phi_max))
+    phi_innov = float(np.clip(fit.phi_hat, cfg.phi_min, cfg.phi_max))
 
     grouped = (
         arr_dedup
@@ -1156,7 +1156,7 @@ def estimate_block_minutes_mc(
         else:
             excess_ss_s = physics_scale_s
 
-        phi_carry_s = float(np.clip(phi_s + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        phi_carry_s = float(np.clip(phi_s, cfg.phi_min, cfg.phi_max))
         carry_pre_s = _carryover_mean(pre_excess_arr, phi_carry_s, pre_gap_arr, data_minutes_arr)
         carry_internal_s = _carryover_mean(start_excess_med_arr, phi_carry_s, 0.0, data_minutes_arr)
         carry_s = np.where(has_precontext_arr, carry_pre_s, carry_internal_s)
@@ -1167,7 +1167,7 @@ def estimate_block_minutes_mc(
 
         occ_frac = np.clip(cal_excess / max(excess_ss_s, 1.0), 0.0, 1.0)
         minutes = occ_frac * block_duration
-        phi_innov_s = float(np.clip(phi_s + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        phi_innov_s = float(np.clip(phi_s, cfg.phi_min, cfg.phi_max))
         innovation_sum_s = innovation_curr_sum_arr - phi_innov_s * innovation_prev_sum_arr
         innovation_mean_s = fit.innovation_mean_empty + baseline_shift_s * max(1.0 - phi_innov_s, 1e-6)
         minutes = _apply_innovation_gate_and_cap(
@@ -2105,7 +2105,7 @@ def validate_label0_temporal_split(
         # Evaluate on test empty blocks
         test_excess = test["mean_excess"].to_numpy()
         test_n_pairs = test["n_innovation_pairs"].to_numpy().astype(np.float64)
-        phi_innov = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        phi_innov = float(np.clip(fit.phi_hat, cfg.phi_min, cfg.phi_max))
         test_innov_sum = (
             test["innovation_curr_sum"].to_numpy().astype(np.float64)
             - phi_innov * test["innovation_prev_sum"].to_numpy().astype(np.float64)
@@ -2675,7 +2675,7 @@ def _estimate_variant_minutes_from_stats(
     minutes = np.clip(cal_excess / max(excess_ss, 1.0), 0.0, 1.0) * block_duration
 
     if use_gate:
-        phi_innov = float(np.clip(fit.phi_hat + 1.28 * fit.phi_se, cfg.phi_min, cfg.phi_max))
+        phi_innov = float(np.clip(fit.phi_hat, cfg.phi_min, cfg.phi_max))
         innovation_sum = (
             stats["innovation_curr_sum"].to_numpy().astype(np.float64)
             - phi_innov * stats["innovation_prev_sum"].to_numpy().astype(np.float64)
@@ -2907,7 +2907,7 @@ def run_semisynthetic_validation(
         if n_local == 0:
             return 0.0, 0.0, 0.0, 0.0
 
-        phi_carry = float(np.clip(fit_obj.phi_hat + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
+        phi_carry = float(np.clip(fit_obj.phi_hat, cfg.phi_min, cfg.phi_max))
         start_anchor = max(float(np.median(excess_series[: min(10, n_local)])), 0.0)
         carry_mean = float(_carryover_mean(start_anchor, phi_carry, 0.0, float(n_local)))
         mean_excess_adj = max(float(np.mean(excess_series)) - carry_mean, 0.0)
@@ -2927,7 +2927,7 @@ def run_semisynthetic_validation(
         n_pairs = float(max(n_local - 1, 0))
         prev_sum = float(np.sum(excess_series[:-1])) if n_local > 1 else 0.0
         curr_sum = float(np.sum(excess_series[1:])) if n_local > 1 else 0.0
-        phi_innov = float(np.clip(fit_obj.phi_hat + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
+        phi_innov = float(np.clip(fit_obj.phi_hat, cfg.phi_min, cfg.phi_max))
         innov_sum = curr_sum - phi_innov * prev_sum if n_local > 1 else 0.0
         minutes_point = float(_apply_innovation_gate_and_cap(
             np.array([minutes_point_level]),
@@ -2954,7 +2954,7 @@ def run_semisynthetic_validation(
             sigma_s = float(np.clip(fit_obj.sigma_noise * sigma_mult_s, 5.0, 200.0))
             floor_s = max(0.0, rng.normal(floor_center, floor_sd * 0.5))
 
-            phi_carry_s = float(np.clip(phi_s + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
+            phi_carry_s = float(np.clip(phi_s, cfg.phi_min, cfg.phi_max))
             carry_mean_s = _carryover_mean(start_anchor, phi_carry_s, 0.0, float(n_local))
             mean_excess_adj_s = max(float(np.mean(excess_series)) - float(carry_mean_s), 0.0)
             cal_excess_s = max((mean_excess_adj_s + baseline_shift_s) - floor_s, 0.0)
@@ -2968,7 +2968,7 @@ def run_semisynthetic_validation(
                 excess_ss_s = physics_scale_s
             min_level_s = float(np.clip(cal_excess_s / max(excess_ss_s, 1.0), 0.0, 1.0) * block_duration)
 
-            phi_innov_s = float(np.clip(phi_s + 1.28 * fit_obj.phi_se, cfg.phi_min, cfg.phi_max))
+            phi_innov_s = float(np.clip(phi_s, cfg.phi_min, cfg.phi_max))
             innov_sum_s = curr_sum - phi_innov_s * prev_sum if n_local > 1 else 0.0
             innov_mean_s = fit_obj.innovation_mean_empty + baseline_shift_s * max(1.0 - phi_innov_s, 1e-6)
             min_s = float(_apply_innovation_gate_and_cap(

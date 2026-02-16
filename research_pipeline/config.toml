@@ -51,7 +51,7 @@ estimator = "block_excess"
 # Controls the boundary between "residual CO2" and "occupancy signal".
 # Higher k → more aggressive suppression of empty-block false positives,
 # at the cost of reduced sensitivity to brief occupancy.
-floor_multiplier = 0.67
+floor_multiplier = 0.73
 
 # Fused lasso ADMM parameters (only used when estimator = "fused_lasso")
 fused_lasso_admm_rho = 1.0

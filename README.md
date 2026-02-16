@@ -64,17 +64,17 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 
 | Metric | Value | Criterion | Pass |
 |---|---:|---:|:---:|
-| C1 in-sample mean unclamped (label=0) | 10.77 min | < 15 | YES |
-| C2 in-sample % under 5 min | 79.9% | > 60% | YES |
-| C1-OOS mean unclamped (label=0) | 17.03 min | < 20 | YES |
-| C2-OOS % under 5 min | 80.7% | > 50% | YES |
+| C1 in-sample mean unclamped (label=0) | 14.96 min | < 15 | YES |
+| C2 in-sample % under 5 min | 76.2% | > 60% | YES |
+| C1-OOS mean unclamped (label=0) | 19.73 min | < 20 | YES |
+| C2-OOS % under 5 min | 78.9% | > 50% | YES |
 | C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
-| C1-OOS 5% trimmed mean | 9.9 min | descriptive | N/A (descriptive) |
-| C1-OOS tail contribution (top 5%) | 56.8% | descriptive | N/A (descriptive) |
-| E1 LOO mean relative MAE | 1.38 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.308 | > 0.2 | YES |
-| E3 max phi sensitivity change | 75.6% | < 200% | YES |
-| E4 high-confidence blocks | 46.2% | > 40% | YES |
+| C1-OOS 5% trimmed mean | 12.81 min | descriptive | N/A (descriptive) |
+| C1-OOS tail contribution (top 5%) | 52.6% | descriptive | N/A (descriptive) |
+| E1 LOO mean relative MAE | 1.16 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.301 | > 0.2 | YES |
+| E3 max phi sensitivity change | 51.8% | < 200% | YES |
+| E4 high-confidence blocks | 44.3% | > 40% | YES |
 
 `N/A (descriptive)` means the metric is reported for interpretation (robustness/tail behavior), not used as a pass/fail criterion.
 
@@ -83,10 +83,10 @@ Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
 
 | Group | Cov80 (Raw MC) | Cov80 (Conformal, eval) | Mean CI Width (Raw) | Mean CI Width (Conformal) | MAE |
 |---|---:|---:|---:|---:|---:|
-| Continuous | 60.8% | 80.9% | 82.7 min | 114.5 min | 49.9 min |
-| Fragmented | 57.7% | 89.3% | 107.6 min | 140.8 min | 59.2 min |
-| Stress | 68.5% | 87.5% | 111.0 min | 147.2 min | 48.9 min |
-| Overall | 63.5% | 85.4% | 98.9 min | 132.8 min | 51.0 min |
+| Continuous | 82.6% | 81.2% | 107.5 min | 107.5 min | 34.2 min |
+| Fragmented | 95.8% | 95.8% | 153.1 min | 153.1 min | 49.9 min |
+| Stress | 81.7% | 85.7% | 150.6 min | 150.6 min | 42.5 min |
+| Overall | 84.5% | 86.0% | 133.5 min | 133.5 min | 40.4 min |
 
 Notes:
 - `Cov80 (Raw MC)` are AR(1)-conditional credible intervals.
