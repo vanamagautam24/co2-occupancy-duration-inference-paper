@@ -51,7 +51,7 @@ To suppress false positives in empty blocks, an innovation significance gate and
     if S_b <= z * sigma_empty * sqrt(m_b): M_hat = 0
     else: M_hat = min(M_level, M_innov + 15)
 
-with z = 1.28 and m_b the number of valid consecutive innovation pairs in the block.
+where z = 1.28 and m_b is the number of valid consecutive innovation pairs in the block.
 
 ## Uncertainty Quantification
 
@@ -63,7 +63,8 @@ generation-rate multiplier, additive phi drift, baseline-excess shift, and innov
 scale inflation. Block-level estimates were summarized as posterior median (p50) with 80%
 credible intervals (p10, p90). For semisynthetic stress evaluation, we additionally report
 split-conformal calibrated intervals (evaluation split only) to assess empirical coverage
-under modeled mismatch families.
+under modeled mismatch families. Conformal padding uses the finite-sample split-conformal
+order statistic with nominal alpha = 0.20.
 
 ## CO2 Smoothing
 

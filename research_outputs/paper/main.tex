@@ -579,10 +579,15 @@ Because no ground-truth occupied minutes are available, we construct a semisynth
     \[
         s_i=\max(\hat{M}_{p10,i}-M^\text{true}_i,\; M^\text{true}_i-\hat{M}_{p90,i},\;0),
     \]
-    set padding $q_{0.8}$ as the 80th percentile of $\{s_i\}$ on the calibration split, then evaluate padded intervals
+    and for nominal $\alpha=0.2$ set
+    \[
+        q_{1-\alpha}=s_{(k)}, \quad
+        k=\left\lceil (n_\text{cal}+1)(1-\alpha)\right\rceil,
+    \]
+    where $s_{(k)}$ is the $k$-th order statistic of calibration scores. We then evaluate padded intervals
     \[
         [\hat{M}_{p10,i}^\text{conf},\hat{M}_{p90,i}^\text{conf}] =
-        [\max(0,\hat{M}_{p10,i}-q_{0.8}),\; \min(240,\hat{M}_{p90,i}+q_{0.8})]
+        [\max(0,\hat{M}_{p10,i}-q_{1-\alpha}),\; \min(240,\hat{M}_{p90,i}+q_{1-\alpha})]
     \]
     on the held-out split.
 \end{enumerate}
@@ -645,9 +650,9 @@ Sensor 22168412 has a notably elevated baseline (\SI{542}{ppm}) relative to the 
 \toprule
 Scenario & C1 (\si{min}) & C2 (\%) & Label=1 mean (\si{min}) & E1 & E2 & $\Delta$ high-sensor mean (\si{min}) \\
 \midrule
-Full data & 10.77 & 79.9 & 32.0 & 1.418 & 0.223 & 0.00 \\
-Exclude high-baseline sensor & 11.58 & 79.1 & 34.7 & 1.441 & 0.177 & -7.52 \\
-Force common baseline on high sensor & 10.77 & 79.9 & 31.8 & 1.418 & 0.223 & -2.26 \\
+Full data & 10.77 & 79.9 & 32.0 & 1.377 & 0.308 & 0.00 \\
+Exclude high-baseline sensor & 11.58 & 79.1 & 34.7 & 1.411 & 0.265 & -7.52 \\
+Force common baseline on high sensor & 10.77 & 79.9 & 31.8 & 1.377 & 0.308 & -2.26 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -741,8 +746,8 @@ Tier & Test & Value & Criterion & Pass? & Interpretation \\
 & C2-OOS: \% under 5~min & 80.7\% & ${>}50\%$ & YES & Majority of held-out absent blocks near zero \\
 \midrule
 \multicolumn{6}{l}{\emph{Independent evaluation criteria}} \\
-& E1: LOO mean relative MAE & 1.42 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
-& E2: LOO mean Spearman $\rho$ & 0.223 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
+& E1: LOO mean relative MAE & 1.38 & ${<}1.5$ & YES & Cross-sensor parameters within 150\% \\
+& E2: LOO mean Spearman $\rho$ & 0.308 & ${>}0.2$ & YES & Rank ordering preserved cross-sensor \\
 & E3: Max $\phi$ sensitivity (\%) & 75.6\% & ${<}200\%$ & YES & Smooth response to decay parameter \\
 & E4: \% blocks high confidence & 46.2\% & ${>}40\%$ & YES & Substantial fraction of estimates have tight uncertainty \\
 \bottomrule
@@ -764,7 +769,7 @@ The 20.1\% of empty blocks that estimate above \SI{5}{min} represent cases where
 
 \subsubsection{Leave-one-sensor-out cross-validation}
 
-Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean relative MAE is 1.42 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.223 (criterion: ${>}0.2$).
+Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, block durations are estimated using the median $\hat{\phi}$ and median $\hat{g}$ from the remaining 11 sensors (cross-sensor parameters). The mean relative MAE is 1.38 (criterion: ${<}1.5$), and the mean Spearman rank correlation is 0.308 (criterion: ${>}0.2$).
 
 \begin{table}[htbp]
 \centering
@@ -775,25 +780,25 @@ Table~\ref{tab:loo} presents the leave-one-sensor-out results. For each sensor, 
 \toprule
 Sensor ID & Room & $\hat{\phi}_\text{own}$ & $\hat{g}_\text{own}$ & $\hat{g}_\text{cross}$ & MAE & Rel.\ MAE & $\rho$ \\
 \midrule
-20233647 & Single & 0.992 & 18.9 & 19.2 & 59.6 & 2.19 & 0.24 \\
-20233665 & Single & 0.995 & 30.5 & 18.9 & 50.0 & 2.51 & 0.06 \\
-20233681 & Single & 0.970 & 60.0 & 18.9 & 75.3 & 1.60 & -0.33 \\
-20233685 & Single & 0.991 & 14.5 & 19.2 & 52.6 & 0.87 & -0.15 \\
-20251591 & Single & 0.987 & 11.9 & 19.2 & 29.1 & 1.48 & 0.33 \\
-22165976 & Shared & 0.995 & 16.3 & 19.2 & 65.7 & 0.82 & -0.16 \\
+20233647 & Single & 0.992 & 18.9 & 19.2 & 53.2 & 1.95 & 0.35 \\
+20233665 & Single & 0.995 & 30.5 & 18.9 & 53.4 & 2.68 & 0.10 \\
+20233681 & Single & 0.970 & 60.0 & 18.9 & 68.5 & 1.46 & 0.12 \\
+20233685 & Single & 0.991 & 14.5 & 19.2 & 49.9 & 0.83 & 0.07 \\
+20251591 & Single & 0.987 & 11.9 & 19.2 & 28.2 & 1.44 & 0.57 \\
+22165976 & Shared & 0.995 & 16.3 & 19.2 & 62.5 & 0.78 & -0.05 \\
 22165978 & Single & 0.994 & 5.4 & 19.2 & 4.6 & 1.33 & 0.76 \\
-22165989 & Single & 0.995 & 22.8 & 18.9 & 44.8 & 1.94 & 0.49 \\
-22165990 & Single & 0.970 & 26.2 & 18.9 & 68.3 & 0.88 & -0.07 \\
+22165989 & Single & 0.995 & 22.8 & 18.9 & 44.7 & 1.94 & 0.28 \\
+22165990 & Single & 0.970 & 26.2 & 18.9 & 68.1 & 0.88 & -0.08 \\
 22165993 & Single & 0.986 & 30.2 & 18.9 & 9.6 & 1.00 & 0.00 \\
-22165994 & Shared & 0.987 & 7.7 & 19.2 & 9.7 & 1.22 & 0.79 \\
-22168412 & Shared & 0.984 & 19.2 & 18.9 & 6.3 & 1.17 & 0.73 \\
+22165994 & Shared & 0.987 & 7.7 & 19.2 & 9.9 & 1.24 & 0.79 \\
+22168412 & Shared & 0.984 & 19.2 & 18.9 & 5.4 & 1.00 & 0.78 \\
 \midrule
-\multicolumn{5}{l}{Mean} & 39.6 & 1.42 & 0.223 \\
+\multicolumn{5}{l}{Mean} & 38.2 & 1.38 & 0.308 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165994 with $\rho = 0.79$), while a subset remains weak or negative (e.g., 20233681 with $\rho = -0.33$, 22165976 with $\rho = -0.16$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.27 and IQR [0.97, 1.69], while Spearman $\rho$ has median 0.15 and IQR [$-0.09$, 0.55]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
+Cross-sensor performance varies considerably across rooms. Several sensors retain strong rank agreement under cross-sensor parameters (e.g., 22165978 with $\rho = 0.76$ and 22165994 with $\rho = 0.79$), while a subset remains weak or negative (e.g., 22165990 with $\rho = -0.08$, 22165976 with $\rho = -0.05$). Beyond the mean criteria, the LOO relative-MAE distribution has median 1.28 and IQR [0.97, 1.58], while Spearman $\rho$ has median 0.20 and IQR [0.05, 0.62]. This spread reflects ventilation heterogeneity and the fact that many blocks lie near the empty-room floor, where small calibration differences determine whether a block estimates as nonzero. The heterogeneity motivates the per-sensor calibration approach.
 
 \subsubsection{Sensitivity analysis}
 
@@ -1058,7 +1063,7 @@ Sensor ID & Noise scale & $\lambda_1$ & $\lambda_2$ \\
 \subsection{Semisynthetic validation}
 % -----------------------------------------------------------------------------
 
-Because no ground-truth occupied minutes are available, we constructed a semisynthetic validation by injecting known synthetic occupancy patterns into real empty-room CO\textsubscript{2} segments (see Section~\ref{sec:semisynthetic_methods}).  Fig.~\ref{fig:semisynthetic} shows the results and Table~\ref{tab:semisynthetic_summary} provides numeric accuracy by scenario.  Across continuous scenarios, the estimator shows systematic underestimation, with bias ranging from approximately $-25$~min (30-min scenario) to $-71$~min for full-block (240-min) occupancy.  Fragmented patterns produce larger negative bias than continuous occupancy of equal total duration (e.g., frag\_4$\times$30 bias $= -62.8$~min vs.\ cont\_120 bias $= -49.1$~min), consistent with block-level averaging smoothing out short visits and innovation-gate detectability limits.  Under model-mismatch stress tests, performance varies strongly by mismatch type: $g\times0.7$ is the hardest condition (MAE \SI{88.7}{min}, raw coverage 11.5\%), while $g\times1.3$ remains comparatively stable (MAE \SI{25.7}{min}).  With structural-mismatch priors included in Monte Carlo, overall raw nominal 80\% interval coverage is 63.5\% (continuous: 60.8\%, fragmented: 57.7\%, stress: 68.5\%). A split-conformal padding layer improves held-out semisynthetic 80\% coverage to 85.4\% (continuous: 80.9\%, fragmented: 89.3\%, stress: 87.5\%), at the cost of wider intervals.
+Because no ground-truth occupied minutes are available, we constructed a semisynthetic validation by injecting known synthetic occupancy patterns into real empty-room CO\textsubscript{2} segments (see Section~\ref{sec:semisynthetic_methods}).  Fig.~\ref{fig:semisynthetic} shows the results and Table~\ref{tab:semisynthetic_summary} provides numeric accuracy by scenario.  Across continuous scenarios, the estimator shows systematic underestimation, with bias ranging from approximately $-25$~min (30-min scenario) to $-71$~min for full-block (240-min) occupancy.  Fragmented patterns produce larger negative bias than continuous occupancy of equal total duration (e.g., frag\_4$\times$30 bias $= -62.8$~min vs.\ cont\_120 bias $= -49.1$~min), consistent with block-level averaging smoothing out short visits and innovation-gate detectability limits.  Under model-mismatch stress tests, performance varies strongly by mismatch type: $g\times0.7$ is the hardest condition (MAE \SI{88.7}{min}, raw coverage 11.5\%), while $g\times1.3$ remains comparatively stable (MAE \SI{25.7}{min}).  The $g\times0.7$ case is intentionally adversarial relative to the central structural prior support and is reported as a worst-case boundary condition rather than an in-prior regime.  With structural-mismatch priors included in Monte Carlo, overall raw nominal 80\% interval coverage is 63.5\% (continuous: 60.8\%, fragmented: 57.7\%, stress: 68.5\%). A split-conformal padding layer improves held-out semisynthetic 80\% coverage to 85.4\% (continuous: 80.9\%, fragmented: 89.3\%, stress: 87.5\%), at the cost of wider intervals; these are calibrated predictive intervals over the modeled mismatch family, while raw Monte Carlo intervals remain AR(1)-conditional credible intervals.
 
 \begin{figure}[htbp]
     \centering

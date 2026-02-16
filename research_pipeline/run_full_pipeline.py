@@ -74,6 +74,8 @@ class Config:
     mc_structural_sigma_phi: float
     mc_structural_sigma_baseline_ppm: float
     mc_structural_sigma_noise_log: float
+    conformal_alpha: float
+    conformal_calibration_fraction: float
 
 
 def load_config(path: Path) -> Config:
@@ -125,6 +127,8 @@ def load_config(path: Path) -> Config:
         mc_structural_sigma_phi=r.get("mc_structural_sigma_phi", 0.0),
         mc_structural_sigma_baseline_ppm=r.get("mc_structural_sigma_baseline_ppm", 0.0),
         mc_structural_sigma_noise_log=r.get("mc_structural_sigma_noise_log", 0.0),
+        conformal_alpha=r.get("conformal_alpha", 0.20),
+        conformal_calibration_fraction=r.get("conformal_calibration_fraction", 0.60),
     )
 
 
@@ -3197,7 +3201,8 @@ def run_semisynthetic_validation(
     idx = np.arange(n, dtype=int)
     rng_conf = np.random.default_rng(cfg.seed + 303)
     rng_conf.shuffle(idx)
-    n_cal = min(max(int(0.6 * n), 40), max(n - 10, 1))
+    cal_frac = float(np.clip(cfg.conformal_calibration_fraction, 0.1, 0.9))
+    n_cal = min(max(int(cal_frac * n), 40), max(n - 10, 1))
     cal_idx = idx[:n_cal]
     eval_idx = idx[n_cal:]
 
@@ -3210,7 +3215,15 @@ def run_semisynthetic_validation(
         true_arr[cal_idx] - p90_arr[cal_idx],
         np.zeros_like(cal_idx, dtype=np.float64),
     ]) if cal_idx.size > 0 else np.array([0.0], dtype=np.float64)
-    conf_q = float(np.quantile(scores, 0.80, method="higher")) if scores.size > 0 else 0.0
+    # Finite-sample split-conformal order statistic:
+    # k = ceil((n_cal + 1) * (1 - alpha)), q = k-th smallest nonconformity score.
+    alpha = float(np.clip(cfg.conformal_alpha, 0.01, 0.49))
+    if scores.size > 0:
+        k = int(np.ceil((scores.size + 1) * (1.0 - alpha)))
+        k = int(np.clip(k, 1, scores.size))
+        conf_q = float(np.partition(scores, k - 1)[k - 1])
+    else:
+        conf_q = 0.0
 
     p10_conf = np.clip(p10_arr - conf_q, 0.0, 240.0)
     p90_conf = np.clip(p90_arr + conf_q, 0.0, 240.0)
@@ -3240,7 +3253,7 @@ def run_semisynthetic_validation(
     log(f"    Semisynthetic MAE: {mae:.1f} min, bias: {bias:.1f} min")
     log(f"    Semisynthetic 80% CI coverage: {coverage:.1f}%")
     if np.isfinite(coverage_conf):
-        log(f"    Semisynthetic conformal 80% CI coverage (eval split): {coverage_conf:.1f}%")
+        log(f"    Semisynthetic conformal {(1.0-alpha)*100:.0f}% CI coverage (eval split): {coverage_conf:.1f}%")
     log(f"    N scenarios evaluated: {result_df.height}")
     return result_df
 
@@ -4612,7 +4625,8 @@ generation-rate multiplier, additive phi drift, baseline-excess shift, and innov
 scale inflation. Block-level estimates were summarized as posterior median (p50) with 80%
 credible intervals (p10, p90). For semisynthetic stress evaluation, we additionally report
 split-conformal calibrated intervals (evaluation split only) to assess empirical coverage
-under modeled mismatch families.
+under modeled mismatch families. Conformal padding uses the finite-sample split-conformal
+order statistic with nominal alpha = {cfg.conformal_alpha:.2f}.
 
 ## CO2 Smoothing
 

@@ -87,3 +87,9 @@ mc_structural_sigma_baseline_ppm = 23.4
 # Multiplicative random effect on innovation noise scale (lognormal std in log-space).
 # Chosen so central 80% prior range reaches about xsqrt(2) inflation.
 mc_structural_sigma_noise_log = 0.270
+
+# Split-conformal calibration settings for semisynthetic interval coverage reporting.
+# These do not change point estimates; they calibrate CI width on semisynthetic
+# calibration splits to target nominal (1 - alpha) marginal coverage.
+conformal_alpha = 0.20
+conformal_calibration_fraction = 0.60

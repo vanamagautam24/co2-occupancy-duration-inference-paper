@@ -7,7 +7,7 @@ V1-OOS robust: median unclamped minutes,0.0,report,NA,Typical held-out empty blo
 V1-OOS robust: P95 unclamped minutes,102.7,report,NA,Tail severity of held-out empty-block errors
 V1-OOS robust: 5% trimmed mean,9.9,report,NA,Mean after trimming top/bottom 5% (tail-robust)
 V1-OOS tail share from top 5% blocks,56.8,report,NA,How much OOS mean is dominated by rare high-carryover blocks
-V3: LOO mean relative MAE,1.42,< 1.5,YES,Cross-sensor parameter estimates within 150% of sensor-specific
-V4: LOO mean Spearman rank correlation,0.223,> 0.2,YES,Block rank ordering preserved with cross-sensor parameters
+V3: LOO mean relative MAE,1.38,< 1.5,YES,Cross-sensor parameter estimates within 150% of sensor-specific
+V4: LOO mean Spearman rank correlation,0.308,> 0.2,YES,Block rank ordering preserved with cross-sensor parameters
 V5: Max phi sensitivity (% change),75.6,< 200%,YES,Estimates change smoothly with decay parameter
 V6: % blocks with high confidence,46.2,> 40%,YES,Substantial fraction of estimates have tight uncertainty

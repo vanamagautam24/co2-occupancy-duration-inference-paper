@@ -71,8 +71,8 @@ Source: `research_outputs/tables/table04_validation_metrics.csv`
 | C1-OOS median unclamped | 0.00 min | descriptive | N/A (descriptive) |
 | C1-OOS 5% trimmed mean | 9.9 min | descriptive | N/A (descriptive) |
 | C1-OOS tail contribution (top 5%) | 56.8% | descriptive | N/A (descriptive) |
-| E1 LOO mean relative MAE | 1.42 | < 1.5 | YES |
-| E2 LOO mean Spearman rho | 0.223 | > 0.2 | YES |
+| E1 LOO mean relative MAE | 1.38 | < 1.5 | YES |
+| E2 LOO mean Spearman rho | 0.308 | > 0.2 | YES |
 | E3 max phi sensitivity change | 75.6% | < 200% | YES |
 | E4 high-confidence blocks | 46.2% | > 40% | YES |
 
@@ -87,6 +87,11 @@ Source: `research_outputs/tables/table10_semisynthetic_coverage.csv`
 | Fragmented | 57.7% | 89.3% | 107.6 min | 140.8 min | 59.2 min |
 | Stress | 68.5% | 87.5% | 111.0 min | 147.2 min | 48.9 min |
 | Overall | 63.5% | 85.4% | 98.9 min | 132.8 min | 51.0 min |
+
+Notes:
+- `Cov80 (Raw MC)` are AR(1)-conditional credible intervals.
+- `Cov80 (Conformal, eval)` are split-conformal calibrated predictive intervals on held-out semisynthetic cases.
+- Stress scenario `g×0.7` is intentionally adversarial (out-of-prior boundary case), so its per-scenario coverage remains the hardest.
 
 ## Baseline Comparator Note
 Source: `research_outputs/tables/table07_baseline_comparators.csv`
